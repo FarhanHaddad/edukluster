@@ -3,5 +3,12 @@
   "version": "0.0.1",
   "private": true,
   "description": "Sistem Rekomendasi Jurusan Perguruan Tinggi Menggunakan K-Means Clustering — Studi Kasus: SMA Keluarga Widuri",
-  "workspaces": ["client", "server", "shared"]
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
 }
