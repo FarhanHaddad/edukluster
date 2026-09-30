@@ -1,3 +1,9 @@
+# EduCluster additions
+dist/
+build/
+.env.local
+.DS_Store
+
 # Logs
 logs
 *.log
