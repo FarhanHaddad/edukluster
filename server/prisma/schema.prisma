@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Semester {
+  GANJIL
+  GENAP
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique @db.VarChar(50)
+  password  String   @db.VarChar(255)
+  nama      String   @db.VarChar(100)
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("admins")
+}
+
+model Periode {
+  id          Int      @id @default(autoincrement())
+  tahunAjaran String   @map("tahun_ajaran") @db.VarChar(9)
+  semester    Semester
+  isAktif     Boolean  @default(false) @map("is_aktif")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([tahunAjaran, semester])
+  @@map("periode")
+}
