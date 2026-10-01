@@ -7,31 +7,428 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Semester {
-  GANJIL
-  GENAP
-}
-
 model Admin {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique @db.VarChar(50)
-  password  String   @db.VarChar(255)
-  nama      String   @db.VarChar(100)
-  status    Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                BigInt              @id @default(autoincrement())
+  name              String?             @db.VarChar(100)
+  username          String?             @unique(map: "username") @db.VarChar(50)
+  email             String?             @unique(map: "email") @db.VarChar(100)
+  password          String?             @db.VarChar(255)
+  createdAt         DateTime?           @map("created_at") @db.Timestamp(0)
+  updatedAt         DateTime?           @updatedAt @map("updated_at") @db.Timestamp(0)
+  kmeans_run        kmeans_run[]
+  preprocessing_run preprocessing_run[]
 
   @@map("admins")
 }
 
 model Periode {
-  id          Int      @id @default(autoincrement())
-  tahunAjaran String   @map("tahun_ajaran") @db.VarChar(9)
-  semester    Semester
-  isAktif     Boolean  @default(false) @map("is_aktif")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                BigInt              @id @default(autoincrement())
+  tahunAjaran       String?             @map("tahun_ajaran") @db.VarChar(20)
+  semester          String?             @db.VarChar(10)
+  nama_periode      String?             @db.VarChar(50)
+  status            String?             @db.VarChar(20)
+  createdAt         DateTime?           @map("created_at") @db.Timestamp(0)
+  updatedAt         DateTime?           @updatedAt @map("updated_at") @db.Timestamp(0)
+  preprocessing_run preprocessing_run[]
+  siswa_periode     siswa_periode[]
 
-  @@unique([tahunAjaran, semester])
+  @@unique([tahunAjaran, semester], map: "periode_index_0")
   @@map("periode")
+}
+
+model category_mapping {
+  id                   BigInt            @id @default(autoincrement())
+  preprocessing_run_id BigInt
+  field_name           String?           @db.VarChar(50)
+  raw_value            String?           @db.VarChar(150)
+  standard_value       String?           @db.VarChar(150)
+  created_at           DateTime?         @db.Timestamp(0)
+  updated_at           DateTime?         @db.Timestamp(0)
+  preprocessing_run    preprocessing_run @relation(fields: [preprocessing_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "category_mapping_ibfk_1")
+
+  @@index([preprocessing_run_id], map: "preprocessing_run_id")
+}
+
+model centroid {
+  id                  BigInt           @id @default(autoincrement())
+  kmeans_iteration_id BigInt
+  cluster_code        String?          @db.VarChar(5)
+  agama               Decimal?         @db.Decimal(8, 4)
+  pkn                 Decimal?         @db.Decimal(8, 4)
+  b_indonesia         Decimal?         @db.Decimal(8, 4)
+  b_inggris           Decimal?         @db.Decimal(8, 4)
+  mtk_wajib           Decimal?         @db.Decimal(8, 4)
+  sejarah             Decimal?         @db.Decimal(8, 4)
+  pjok                Decimal?         @db.Decimal(8, 4)
+  seni_rupa           Decimal?         @db.Decimal(8, 4)
+  b_jepang            Decimal?         @db.Decimal(8, 4)
+  biologi             Decimal?         @db.Decimal(8, 4)
+  fisika              Decimal?         @db.Decimal(8, 4)
+  kimia               Decimal?         @db.Decimal(8, 4)
+  informatika         Decimal?         @db.Decimal(8, 4)
+  mtk_lanjut          Decimal?         @db.Decimal(8, 4)
+  geografi            Decimal?         @db.Decimal(8, 4)
+  sosial              Decimal?         @db.Decimal(8, 4)
+  pkwu                Decimal?         @db.Decimal(8, 4)
+  ekonomi             Decimal?         @db.Decimal(8, 4)
+  ekstrakurikuler     Decimal?         @db.Decimal(8, 4)
+  prestasi            Decimal?         @db.Decimal(8, 4)
+  kemampuan           Decimal?         @db.Decimal(8, 4)
+  organisasi          Decimal?         @db.Decimal(8, 4)
+  kursus              Decimal?         @db.Decimal(8, 4)
+  jurusan_1           Decimal?         @db.Decimal(8, 4)
+  jurusan_2           Decimal?         @db.Decimal(8, 4)
+  created_at          DateTime?        @db.Timestamp(0)
+  kmeans_iteration    kmeans_iteration @relation(fields: [kmeans_iteration_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "centroid_ibfk_1")
+
+  @@index([kmeans_iteration_id], map: "kmeans_iteration_id")
+}
+
+model cleaned_data {
+  id                   BigInt            @id @default(autoincrement())
+  preprocessing_run_id BigInt
+  siswa_periode_id     BigInt
+  agama                Decimal?          @db.Decimal(8, 4)
+  pkn                  Decimal?          @db.Decimal(8, 4)
+  b_indonesia          Decimal?          @db.Decimal(8, 4)
+  b_inggris            Decimal?          @db.Decimal(8, 4)
+  mtk_wajib            Decimal?          @db.Decimal(8, 4)
+  sejarah              Decimal?          @db.Decimal(8, 4)
+  pjok                 Decimal?          @db.Decimal(8, 4)
+  seni_rupa            Decimal?          @db.Decimal(8, 4)
+  b_jepang             Decimal?          @db.Decimal(8, 4)
+  biologi              Decimal?          @db.Decimal(8, 4)
+  fisika               Decimal?          @db.Decimal(8, 4)
+  kimia                Decimal?          @db.Decimal(8, 4)
+  informatika          Decimal?          @db.Decimal(8, 4)
+  mtk_lanjut           Decimal?          @db.Decimal(8, 4)
+  geografi             Decimal?          @db.Decimal(8, 4)
+  sosial               Decimal?          @db.Decimal(8, 4)
+  pkwu                 Decimal?          @db.Decimal(8, 4)
+  ekonomi              Decimal?          @db.Decimal(8, 4)
+  ekstrakurikuler      String?           @db.VarChar(100)
+  prestasi             String?           @db.VarChar(100)
+  kemampuan            String?           @db.VarChar(100)
+  organisasi           String?           @db.VarChar(100)
+  kursus               String?           @db.VarChar(100)
+  jurusan_1            String?           @db.VarChar(150)
+  jurusan_2            String?           @db.VarChar(150)
+  created_at           DateTime?         @db.Timestamp(0)
+  updated_at           DateTime?         @db.Timestamp(0)
+  preprocessing_run    preprocessing_run @relation(fields: [preprocessing_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cleaned_data_ibfk_1")
+  siswa_periode        siswa_periode     @relation(fields: [siswa_periode_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cleaned_data_ibfk_2")
+
+  @@index([preprocessing_run_id], map: "preprocessing_run_id")
+  @@index([siswa_periode_id], map: "siswa_periode_id")
+}
+
+model cluster_assignment {
+  id                  BigInt           @id @default(autoincrement())
+  kmeans_iteration_id BigInt
+  siswa_periode_id    BigInt
+  cluster_code        String?          @db.VarChar(5)
+  nearest_distance    Decimal?         @db.Decimal(12, 8)
+  created_at          DateTime?        @db.Timestamp(0)
+  kmeans_iteration    kmeans_iteration @relation(fields: [kmeans_iteration_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cluster_assignment_ibfk_1")
+  siswa_periode       siswa_periode    @relation(fields: [siswa_periode_id], references: [id], onUpdate: NoAction, map: "cluster_assignment_ibfk_2")
+
+  @@index([kmeans_iteration_id], map: "kmeans_iteration_id")
+  @@index([siswa_periode_id], map: "siswa_periode_id")
+}
+
+model cluster_profile {
+  id               BigInt     @id @default(autoincrement())
+  kmeans_run_id    BigInt
+  cluster_code     String?    @db.VarChar(5)
+  bidang_studi     String?    @db.VarChar(150)
+  jurusan_spesifik String?    @db.VarChar(150)
+  deskripsi        String?    @db.Text
+  created_at       DateTime?  @db.Timestamp(0)
+  updated_at       DateTime?  @db.Timestamp(0)
+  kmeans_run       kmeans_run @relation(fields: [kmeans_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cluster_profile_ibfk_1")
+
+  @@unique([kmeans_run_id, cluster_code], map: "cluster_profile_index_6")
+}
+
+model cluster_result {
+  id               BigInt        @id @default(autoincrement())
+  kmeans_run_id    BigInt
+  siswa_periode_id BigInt
+  cluster_code     String?       @db.VarChar(5)
+  distance         Decimal?      @db.Decimal(12, 8)
+  created_at       DateTime?     @db.Timestamp(0)
+  kmeans_run       kmeans_run    @relation(fields: [kmeans_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cluster_result_ibfk_1")
+  siswa_periode    siswa_periode @relation(fields: [siswa_periode_id], references: [id], onUpdate: NoAction, map: "cluster_result_ibfk_2")
+
+  @@unique([kmeans_run_id, siswa_periode_id], map: "cluster_result_index_5")
+  @@index([siswa_periode_id], map: "siswa_periode_id")
+}
+
+model integrated_data {
+  id                   BigInt            @id @default(autoincrement())
+  preprocessing_run_id BigInt
+  siswa_periode_id     BigInt
+  agama                Decimal?          @db.Decimal(8, 4)
+  pkn                  Decimal?          @db.Decimal(8, 4)
+  b_indonesia          Decimal?          @db.Decimal(8, 4)
+  b_inggris            Decimal?          @db.Decimal(8, 4)
+  mtk_wajib            Decimal?          @db.Decimal(8, 4)
+  sejarah              Decimal?          @db.Decimal(8, 4)
+  pjok                 Decimal?          @db.Decimal(8, 4)
+  seni_rupa            Decimal?          @db.Decimal(8, 4)
+  b_jepang             Decimal?          @db.Decimal(8, 4)
+  biologi              Decimal?          @db.Decimal(8, 4)
+  fisika               Decimal?          @db.Decimal(8, 4)
+  kimia                Decimal?          @db.Decimal(8, 4)
+  informatika          Decimal?          @db.Decimal(8, 4)
+  mtk_lanjut           Decimal?          @db.Decimal(8, 4)
+  geografi             Decimal?          @db.Decimal(8, 4)
+  sosial               Decimal?          @db.Decimal(8, 4)
+  pkwu                 Decimal?          @db.Decimal(8, 4)
+  ekonomi              Decimal?          @db.Decimal(8, 4)
+  ekstrakurikuler      String?           @db.VarChar(100)
+  prestasi             String?           @db.VarChar(100)
+  kemampuan            String?           @db.VarChar(100)
+  organisasi           String?           @db.VarChar(100)
+  kursus               String?           @db.VarChar(100)
+  jurusan_1            String?           @db.VarChar(150)
+  jurusan_2            String?           @db.VarChar(150)
+  created_at           DateTime?         @db.Timestamp(0)
+  updated_at           DateTime?         @db.Timestamp(0)
+  preprocessing_run    preprocessing_run @relation(fields: [preprocessing_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "integrated_data_ibfk_1")
+  siswa_periode        siswa_periode     @relation(fields: [siswa_periode_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "integrated_data_ibfk_2")
+
+  @@unique([preprocessing_run_id, siswa_periode_id], map: "integrated_data_index_4")
+  @@index([siswa_periode_id], map: "siswa_periode_id")
+}
+
+model kmeans_iteration {
+  id                 BigInt               @id @default(autoincrement())
+  kmeans_run_id      BigInt
+  iteration_number   Int?
+  is_converged       Boolean?
+  created_at         DateTime?            @db.Timestamp(0)
+  centroid           centroid[]
+  cluster_assignment cluster_assignment[]
+  kmeans_run         kmeans_run           @relation(fields: [kmeans_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "kmeans_iteration_ibfk_1")
+
+  @@index([kmeans_run_id], map: "kmeans_run_id")
+}
+
+model kmeans_run {
+  id                   BigInt             @id @default(autoincrement())
+  preprocessing_run_id BigInt
+  admin_id             BigInt
+  k                    Int?               @default(10)
+  distance_method      String?            @db.VarChar(30)
+  status               String?            @db.VarChar(20)
+  total_iteration      Int?
+  converged            Boolean?
+  started_at           DateTime?          @db.DateTime(0)
+  completed_at         DateTime?          @db.DateTime(0)
+  created_at           DateTime?          @db.Timestamp(0)
+  updated_at           DateTime?          @db.Timestamp(0)
+  cluster_profile      cluster_profile[]
+  cluster_result       cluster_result[]
+  kmeans_iteration     kmeans_iteration[]
+  preprocessing_run    preprocessing_run  @relation(fields: [preprocessing_run_id], references: [id], onUpdate: NoAction, map: "kmeans_run_ibfk_1")
+  admins               Admin              @relation(fields: [admin_id], references: [id], onUpdate: NoAction, map: "kmeans_run_ibfk_2")
+  recommendation       recommendation[]
+
+  @@index([admin_id], map: "admin_id")
+  @@index([preprocessing_run_id], map: "preprocessing_run_id")
+}
+
+model nilai_akademik {
+  id               BigInt        @id @default(autoincrement())
+  siswa_periode_id BigInt
+  jenis_nilai      String        @db.VarChar(10)
+  agama            Decimal?      @db.Decimal(5, 2)
+  pkn              Decimal?      @db.Decimal(5, 2)
+  b_indonesia      Decimal?      @db.Decimal(5, 2)
+  b_inggris        Decimal?      @db.Decimal(5, 2)
+  mtk_wajib        Decimal?      @db.Decimal(5, 2)
+  sejarah          Decimal?      @db.Decimal(5, 2)
+  pjok             Decimal?      @db.Decimal(5, 2)
+  seni_rupa        Decimal?      @db.Decimal(5, 2)
+  b_jepang         Decimal?      @db.Decimal(5, 2)
+  biologi          Decimal?      @db.Decimal(5, 2)
+  fisika           Decimal?      @db.Decimal(5, 2)
+  kimia            Decimal?      @db.Decimal(5, 2)
+  informatika      Decimal?      @db.Decimal(5, 2)
+  mtk_lanjut       Decimal?      @db.Decimal(5, 2)
+  geografi         Decimal?      @db.Decimal(5, 2)
+  sosial           Decimal?      @db.Decimal(5, 2)
+  pkwu             Decimal?      @db.Decimal(5, 2)
+  ekonomi          Decimal?      @db.Decimal(5, 2)
+  created_at       DateTime?     @db.Timestamp(0)
+  updated_at       DateTime?     @db.Timestamp(0)
+  siswa_periode    siswa_periode @relation(fields: [siswa_periode_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "nilai_akademik_ibfk_1")
+
+  @@unique([siswa_periode_id, jenis_nilai], map: "nilai_akademik_index_2")
+}
+
+model non_akademik {
+  id               BigInt        @id @default(autoincrement())
+  siswa_periode_id BigInt        @unique(map: "non_akademik_index_3")
+  ekstrakurikuler  String?       @db.VarChar(100)
+  prestasi         String?       @db.VarChar(100)
+  kemampuan        String?       @db.VarChar(100)
+  organisasi       String?       @db.VarChar(100)
+  kursus           String?       @db.VarChar(100)
+  jurusan_1        String?       @db.VarChar(150)
+  jurusan_2        String?       @db.VarChar(150)
+  created_at       DateTime?     @db.Timestamp(0)
+  updated_at       DateTime?     @db.Timestamp(0)
+  siswa_periode    siswa_periode @relation(fields: [siswa_periode_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "non_akademik_ibfk_1")
+}
+
+model preprocessing_run {
+  id                BigInt             @id @default(autoincrement())
+  periode_id        BigInt
+  admin_id          BigInt
+  imputation_method String?            @db.VarChar(20)
+  status            String?            @db.VarChar(20)
+  started_at        DateTime?          @db.DateTime(0)
+  completed_at      DateTime?          @db.DateTime(0)
+  created_at        DateTime?          @db.Timestamp(0)
+  updated_at        DateTime?          @db.Timestamp(0)
+  category_mapping  category_mapping[]
+  cleaned_data      cleaned_data[]
+  integrated_data   integrated_data[]
+  kmeans_run        kmeans_run[]
+  periode           Periode            @relation(fields: [periode_id], references: [id], onUpdate: NoAction, map: "preprocessing_run_ibfk_1")
+  admins            Admin              @relation(fields: [admin_id], references: [id], onUpdate: NoAction, map: "preprocessing_run_ibfk_2")
+  reduced_data      reduced_data[]
+  transformed_data  transformed_data[]
+
+  @@index([admin_id], map: "admin_id")
+  @@index([periode_id], map: "periode_id")
+}
+
+model recommendation {
+  id               BigInt        @id @default(autoincrement())
+  kmeans_run_id    BigInt
+  siswa_periode_id BigInt
+  cluster_code     String?       @db.VarChar(5)
+  recommendation_1 String?       @db.VarChar(150)
+  bobot_1          Decimal?      @db.Decimal(5, 2)
+  recommendation_2 String?       @db.VarChar(150)
+  bobot_2          Decimal?      @db.Decimal(5, 2)
+  created_at       DateTime?     @db.Timestamp(0)
+  kmeans_run       kmeans_run    @relation(fields: [kmeans_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "recommendation_ibfk_1")
+  siswa_periode    siswa_periode @relation(fields: [siswa_periode_id], references: [id], onUpdate: NoAction, map: "recommendation_ibfk_2")
+
+  @@unique([kmeans_run_id, siswa_periode_id], map: "recommendation_index_7")
+  @@index([siswa_periode_id], map: "siswa_periode_id")
+}
+
+model reduced_data {
+  id                   BigInt            @id @default(autoincrement())
+  preprocessing_run_id BigInt
+  siswa_periode_id     BigInt
+  agama                Decimal?          @db.Decimal(8, 4)
+  pkn                  Decimal?          @db.Decimal(8, 4)
+  b_indonesia          Decimal?          @db.Decimal(8, 4)
+  b_inggris            Decimal?          @db.Decimal(8, 4)
+  mtk_wajib            Decimal?          @db.Decimal(8, 4)
+  sejarah              Decimal?          @db.Decimal(8, 4)
+  pjok                 Decimal?          @db.Decimal(8, 4)
+  seni_rupa            Decimal?          @db.Decimal(8, 4)
+  b_jepang             Decimal?          @db.Decimal(8, 4)
+  biologi              Decimal?          @db.Decimal(8, 4)
+  fisika               Decimal?          @db.Decimal(8, 4)
+  kimia                Decimal?          @db.Decimal(8, 4)
+  informatika          Decimal?          @db.Decimal(8, 4)
+  mtk_lanjut           Decimal?          @db.Decimal(8, 4)
+  geografi             Decimal?          @db.Decimal(8, 4)
+  sosial               Decimal?          @db.Decimal(8, 4)
+  pkwu                 Decimal?          @db.Decimal(8, 4)
+  ekonomi              Decimal?          @db.Decimal(8, 4)
+  ekstrakurikuler      Decimal?          @db.Decimal(8, 4)
+  prestasi             Decimal?          @db.Decimal(8, 4)
+  kemampuan            Decimal?          @db.Decimal(8, 4)
+  organisasi           Decimal?          @db.Decimal(8, 4)
+  kursus               Decimal?          @db.Decimal(8, 4)
+  jurusan_1            Decimal?          @db.Decimal(8, 4)
+  jurusan_2            Decimal?          @db.Decimal(8, 4)
+  created_at           DateTime?         @db.Timestamp(0)
+  updated_at           DateTime?         @db.Timestamp(0)
+  preprocessing_run    preprocessing_run @relation(fields: [preprocessing_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "reduced_data_ibfk_1")
+  siswa_periode        siswa_periode     @relation(fields: [siswa_periode_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "reduced_data_ibfk_2")
+
+  @@index([preprocessing_run_id], map: "preprocessing_run_id")
+  @@index([siswa_periode_id], map: "siswa_periode_id")
+}
+
+model siswa {
+  id            BigInt          @id @default(autoincrement())
+  nis           String?         @unique(map: "nis") @db.VarChar(20)
+  nama          String?         @db.VarChar(150)
+  jenis_kelamin String?         @db.VarChar(1)
+  created_at    DateTime?       @db.Timestamp(0)
+  updated_at    DateTime?       @db.Timestamp(0)
+  siswa_periode siswa_periode[]
+}
+
+model siswa_periode {
+  id                 BigInt               @id @default(autoincrement())
+  siswa_id           BigInt
+  periode_id         BigInt
+  kelas              String?              @db.VarChar(20)
+  source_type        String?              @db.VarChar(20)
+  created_at         DateTime?            @db.Timestamp(0)
+  updated_at         DateTime?            @db.Timestamp(0)
+  cleaned_data       cleaned_data[]
+  cluster_assignment cluster_assignment[]
+  cluster_result     cluster_result[]
+  integrated_data    integrated_data[]
+  nilai_akademik     nilai_akademik[]
+  non_akademik       non_akademik?
+  recommendation     recommendation[]
+  reduced_data       reduced_data[]
+  siswa              siswa                @relation(fields: [siswa_id], references: [id], onUpdate: NoAction, map: "siswa_periode_ibfk_1")
+  periode            Periode              @relation(fields: [periode_id], references: [id], onUpdate: NoAction, map: "siswa_periode_ibfk_2")
+  transformed_data   transformed_data[]
+
+  @@unique([siswa_id, periode_id], map: "siswa_periode_index_1")
+  @@index([periode_id], map: "periode_id")
+}
+
+model transformed_data {
+  id                   BigInt            @id @default(autoincrement())
+  preprocessing_run_id BigInt
+  siswa_periode_id     BigInt
+  agama                Decimal?          @db.Decimal(8, 4)
+  pkn                  Decimal?          @db.Decimal(8, 4)
+  b_indonesia          Decimal?          @db.Decimal(8, 4)
+  b_inggris            Decimal?          @db.Decimal(8, 4)
+  mtk_wajib            Decimal?          @db.Decimal(8, 4)
+  sejarah              Decimal?          @db.Decimal(8, 4)
+  pjok                 Decimal?          @db.Decimal(8, 4)
+  seni_rupa            Decimal?          @db.Decimal(8, 4)
+  b_jepang             Decimal?          @db.Decimal(8, 4)
+  biologi              Decimal?          @db.Decimal(8, 4)
+  fisika               Decimal?          @db.Decimal(8, 4)
+  kimia                Decimal?          @db.Decimal(8, 4)
+  informatika          Decimal?          @db.Decimal(8, 4)
+  mtk_lanjut           Decimal?          @db.Decimal(8, 4)
+  geografi             Decimal?          @db.Decimal(8, 4)
+  sosial               Decimal?          @db.Decimal(8, 4)
+  pkwu                 Decimal?          @db.Decimal(8, 4)
+  ekonomi              Decimal?          @db.Decimal(8, 4)
+  ekstrakurikuler      Decimal?          @db.Decimal(8, 4)
+  prestasi             Decimal?          @db.Decimal(8, 4)
+  kemampuan            Decimal?          @db.Decimal(8, 4)
+  organisasi           Decimal?          @db.Decimal(8, 4)
+  kursus               Decimal?          @db.Decimal(8, 4)
+  jurusan_1            Decimal?          @db.Decimal(8, 4)
+  jurusan_2            Decimal?          @db.Decimal(8, 4)
+  created_at           DateTime?         @db.Timestamp(0)
+  updated_at           DateTime?         @db.Timestamp(0)
+  preprocessing_run    preprocessing_run @relation(fields: [preprocessing_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "transformed_data_ibfk_1")
+  siswa_periode        siswa_periode     @relation(fields: [siswa_periode_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "transformed_data_ibfk_2")
+
+  @@index([preprocessing_run_id], map: "preprocessing_run_id")
+  @@index([siswa_periode_id], map: "siswa_periode_id")
 }
