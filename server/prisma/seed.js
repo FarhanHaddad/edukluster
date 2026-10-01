@@ -1,26 +1,45 @@
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
-
+const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash('widuri2026', 10);
+  const passwordHash = await bcrypt.hash("widuri2026", 10);
 
+  // 1. Seed Admin — kolom mengikuti tabel `admins` di SQL DBDiagram
   await prisma.admin.upsert({
-    where: { username: 'satnaing' },
+    where: { username: "satnaing" },
     update: {},
-    create: { username: 'satnaing', password: passwordHash, nama: 'Sat Naing', status: true },
+    create: {
+      username: "satnaing",
+      password: passwordHash,
+      name: "SatNaing", //⚠️ pakai `name`, BUKAN `nama`
+      email: "satnaing@widuri.sch.id", // kolom email ada di database, isi dummy dulu
+    },
   });
 
+  // 2. Seed Periode — kolom mengikuti tabel `periode` di SQL DBDiagram
   await prisma.periode.upsert({
-    where: { tahunAjaran_semester: { tahunAjaran: '2025/2026', semester: 'GANJIL' } },
+    where: {
+      tahunAjaran_semester: {
+        tahunAjaran: "2025/2026",
+        semester: "GANJIL",
+      },
+    },
     update: {},
-    create: { tahunAjaran: '2025/2026', semester: 'GANJIL', isAktif: true },
+    create: {
+      tahunAjaran: "2025/2026",
+      semester: "GANJIL",
+      nama_periode: "2025/2026 Ganjil", // ← bukan namaPeriode, ikuti schema.prisma
+      status: "AKTIF", // ⚠️ varchar, bukan boolean 'isAktif'
+    },
   });
 
-  console.log('✅ Seed selesai: admin satnaing + periode 2025/2026 Ganjil');
+  console.log("✅ Seed selesai: admin satnaing + periode 2025/2026 Ganjil");
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());
