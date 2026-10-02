@@ -8,6 +8,10 @@ Alur: Request -> middleware -> routes -> controller -> service -> Prisma -> MySQ
 - utils: fungsi murni (euclidean, dbi, min-max); wajib unit-testable.
 - validations: Zod schema; pakai shared/ bila dipakai FE+BE.
 
+## FE Conventions
+- Theme: semantic CSS variables (:root=light, .dark=dark) di-map via Tailwind v4 `@theme inline`; komponen hanya pakai token semantik; prefix `dark:` dilarang; toggle = class `dark` di <html> + localStorage.
+- Components: DRY/LEGO — UI berulang diekstrak ke components (primitif ui + domain) dengan props; page hanya mengomposisi, dilarang copy-paste markup.
+
 ## Aturan File
 - Naming: x.routes.js, x.controller.js, x.service.js, x.validation.js
 - Controller <= ~100 baris; Service <= ~200 baris; lebih = pecah per domain.

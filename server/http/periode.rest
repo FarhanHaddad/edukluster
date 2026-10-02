@@ -1,0 +1,55 @@
+@baseUrl = http://localhost:5000/api
+
+### 0. Login (Wajib 200 + token)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "satnaing", "password": "widuri2026" }
+
+### 1. List Periode (Wajib 200, cek apakah ID berupa Number, BUKAN string "1")
+@token = {{login.response.body.data.token}}
+GET {{baseUrl}}/periodes
+Authorization: Bearer {{token}}
+
+### 2. Get Periode Active (Wajib 200, status = 'AKTIF')
+GET {{baseUrl}}/periodes/active
+Authorization: Bearer {{token}}
+
+### 3. Create Periode Baru (Wajib 201, status auto 'NONAKTIF')
+POST {{baseUrl}}/periodes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "tahunAjaran": "2026/2027", "semester": "GANJIL" }
+
+### 4. Create Duplikat (Wajib 409, pesan error spesifik)
+POST {{baseUrl}}/periodes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "tahunAjaran": "2025/2026", "semester": "GANJIL" }
+
+### 5. Create Validasi Gagal (Wajib 400, tahunAjaran salah format)
+POST {{baseUrl}}/periodes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "tahunAjaran": "2025", "semester": "SALAH" }
+
+### 6. Activate Periode Baru (Wajib 200)
+# ⚠️ GANTI ANGKA '2' DI BAWAH DENGAN ID DARI RESPONSE NOMOR 3
+PATCH {{baseUrl}}/periodes/2/activate
+Authorization: Bearer {{token}}
+
+### 7. Activate yang udah AKTIF (Wajib 409)
+PATCH {{baseUrl}}/periodes/2/activate
+Authorization: Bearer {{token}}
+
+### 8. Activate ID Ngawur (Wajib 404)
+PATCH {{baseUrl}}/periodes/999/activate
+Authorization: Bearer {{token}}
+
+### 9. Cleanup: aktifkan kembali periode seed
+PATCH {{baseUrl}}/periodes/1/activate
+Authorization: Bearer {{token}}
