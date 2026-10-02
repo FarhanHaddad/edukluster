@@ -27,7 +27,7 @@ model Periode {
   tahunAjaran       String?             @map("tahun_ajaran") @db.VarChar(20)
   semester          String?             @db.VarChar(10)
   namaPeriode       String?             @map("nama_periode") @db.VarChar(50)
-  status            Boolean             @default(false)
+  status            String?             @db.VarChar(20)
   createdAt         DateTime?           @map("created_at") @db.Timestamp(0)
   updatedAt         DateTime?           @updatedAt @map("updated_at") @db.Timestamp(0)
   preprocessing_run preprocessing_run[]

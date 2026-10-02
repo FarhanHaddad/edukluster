@@ -31,7 +31,7 @@ async function main() {
       tahunAjaran: "2025/2026",
       semester: "GANJIL",
       namaPeriode: "2025/2026 Ganjil", // ← camelCase, dipetakan ke kolom `nama_periode` via @map
-      status: true, // ⚠️ boolean (aktif), bukan varchar 'AKTIF'
+      status: 'AKTIF', // ⚠️ boolean (aktif), bukan varchar 'AKTIF'
     },
   });
 
