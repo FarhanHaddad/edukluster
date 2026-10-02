@@ -18,6 +18,11 @@ async function login({ username, password }) {
     throw new ApiError(401, 'Username atau password salah');
   }
 
+  // FR-M02 (Sprint 2): tolak login untuk admin nonaktif — cek SEBELUM jwt.sign.
+  if (admin.status === false) {
+    throw new ApiError(403, 'Akun Anda nonaktif. Hubungi administrator lain.');
+  }
+
   // RULE WAJIB: BigInt -> Number() sebelum jwt.sign.
   const token = jwt.sign(
     { sub: Number(admin.id), username: admin.username },
