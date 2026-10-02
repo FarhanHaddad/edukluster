@@ -88,7 +88,7 @@ export default function LoginPage() {
           EduCluster SMA Widuri
         </h1>
         <p className="mt-2 text-center text-sm leading-5 text-zinc-500 dark:text-zinc-400">
-          Masuk untuk mengelola data siswa dan analisis clustering.
+          Sistem Rekomendasi Jurusan Perguruan Tinggi Berbasis K-Means
         </p>
 
         {/* Banner error generik (401) / nonaktif (403) */}
