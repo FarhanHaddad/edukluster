@@ -14,6 +14,7 @@ async function main() {
       password: passwordHash,
       name: "SatNaing", //⚠️ pakai `name`, BUKAN `nama`
       email: "satnaing@widuri.sch.id", // kolom email ada di database, isi dummy dulu
+      status: true, // admin aktif (Sprint 2: Manajemen Admin)
     },
   });
 
@@ -29,8 +30,8 @@ async function main() {
     create: {
       tahunAjaran: "2025/2026",
       semester: "GANJIL",
-      nama_periode: "2025/2026 Ganjil", // ← bukan namaPeriode, ikuti schema.prisma
-      status: "AKTIF", // ⚠️ varchar, bukan boolean 'isAktif'
+      namaPeriode: "2025/2026 Ganjil", // ← camelCase, dipetakan ke kolom `nama_periode` via @map
+      status: true, // ⚠️ boolean (aktif), bukan varchar 'AKTIF'
     },
   });
 
