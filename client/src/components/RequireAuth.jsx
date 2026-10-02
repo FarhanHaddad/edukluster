@@ -7,8 +7,8 @@ export default function RequireAuth() {
 
   if (bootState === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
-        <span className="size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-brand dark:border-zinc-700 dark:border-t-brand-dark" />
+      <div className="flex min-h-screen items-center justify-center bg-page">
+        <span className="size-5 animate-spin rounded-full border-2 border-line-strong border-t-brand" />
       </div>
     );
   }

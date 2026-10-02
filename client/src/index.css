@@ -1,31 +1,122 @@
 @import 'tailwindcss';
 
-/* Kelas .dark di <html> mengontrol dark mode (DESIGN.md: theme toggle). */
+/* Kelas .dark di <html> mengontrol dark mode (CONVENTIONS.md: theme via CSS variables). */
 @custom-variant dark (&:where(.dark, .dark *));
 
-@theme {
+/* ============================================================
+   TOKEN SEMANTIK — sumber tunggal tema (FR-B03 / DESIGN.md).
+   Komponen HANYA memakai token ini; prefix `dark:` dilarang.
+   Light = GLOBAL LOCK RULES v1.4 (zinc + brand #A64DC4).
+   Dark  = DARK MODE CONTRACT v1.0/v1.1 (zinc #09090B..#3F3F46 + brand #BE7DD4).
+   ============================================================ */
+:root {
+  /* Permukaan & latar (elevasi: kartu selalu satu tingkat lebih terang dari bg) */
+  --bg-page: #f4f4f5;            /* halaman */
+  --bg-shell: #ffffff;           /* sidebar, topbar, kartu */
+  --bg-elevated: #f4f4f5;        /* header tabel, dropdown */
+  --bg-recessed: #f4f4f5;        /* input recessed */
+  --border: #e4e4e7;             /* border standar */
+  --border-strong: #d4d4d8;      /* border kuat / chip */
+
+  /* Teks */
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #71717a;         /* placeholder & teks muted */
+
+  /* Brand */
+  --brand: #a64dc4;
+  --brand-hover: #8f39ac;
+  --brand-active: #793191;
+  --brand-tint: rgba(166, 77, 196, 0.1);  /* brand tint bg 10% */
+  --brand-tint-border: rgba(166, 77, 196, 0.25);
+  --on-brand: #ffffff;
+
+  /* Semantik (soft tinted badges: tint 10-15% bg + solid text) */
+  --success: #16a34a;
+  --success-tint: rgba(22, 163, 74, 0.12);
+  --warning: #d97706;
+  --warning-tint: rgba(217, 119, 6, 0.12);
+  --destructive: #dc2626;
+  --destructive-tint: rgba(220, 38, 38, 0.12);
+  --info: #2563eb;
+  --info-tint: rgba(37, 99, 235, 0.12);
+
+  /* Shell token lock (light) */
+  --search-bg: #ffffff;
+  --chip-bg: #f4f4f5;
+  --toggle-bg: #ffffff;
+  --backdrop: rgba(11, 11, 13, 0.4);
+}
+
+.dark {
+  /* Permukaan (DARK MODE CONTRACT: page #09090B; shell/card #18181B; elevated #1E1E24; recessed #121215) */
+  --bg-page: #09090b;
+  --bg-shell: #18181b;
+  --bg-elevated: #1e1e24;
+  --bg-recessed: #121215;
+  --border: #27272a;
+  --border-strong: #3f3f46;
+
+  /* Teks */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+
+  /* Brand */
+  --brand: #be7dd4;
+  --brand-hover: #b266cc;
+  --brand-active: #a05cb8;
+  --brand-tint: rgba(190, 125, 212, 0.15);
+  --brand-tint-border: rgba(190, 125, 212, 0.25);
+  --on-brand: #18181b;
+
+  /* Semantik dark (bg 15% / border 40% / solid text) */
+  --success: #4ade80;
+  --success-tint: rgba(22, 163, 74, 0.15);
+  --warning: #fbbf24;
+  --warning-tint: rgba(217, 119, 6, 0.15);
+  --destructive: #f87171;
+  --destructive-tint: rgba(220, 38, 38, 0.15);
+  --info: #60a5fa;
+  --info-tint: rgba(37, 99, 235, 0.15);
+
+  /* Shell token lock (dark): search #121215/#27272A; chip & toggle #27272A/#3F3F46 */
+  --search-bg: #121215;
+  --chip-bg: #27272a;
+  --toggle-bg: #27272a;
+  --backdrop: #0b0b0d;
+}
+
+/* Peta token semantik -> utilitas Tailwind v4 (@theme inline). */
+@theme inline {
   /* Font (DESIGN.md): Inter untuk UI; JetBrains Mono HANYA untuk NIS/angka/skor/timestamp/kode. */
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  /* Netral zinc — dipakai konsisten di light & dark (GLOBAL LOCK RULES v1.4). */
-  --color-zinc-50: #fafafa;
-  --color-zinc-100: #f4f4f5;
-  --color-zinc-200: #e4e4e7;
-  --color-zinc-300: #d4d4d8;
-  --color-zinc-400: #a1a1aa;
-  --color-zinc-500: #71717a;
-  --color-zinc-600: #52525b;
-  --color-zinc-700: #3f3f46;
-  --color-zinc-800: #18181b;
-  --color-zinc-900: #09090b;
-
-  /* Brand (light) + brand (DARK MODE CONTRACT). */
-  --color-brand: #a64dc4;
-  --color-brand-hover: #8f39ac;
-  --color-brand-active: #793191;
-  --color-brand-dark: #be7dd4;
-  --color-brand-dark-hover: #b266cc;
+  /* Warna semantik */
+  --color-page: var(--bg-page);
+  --color-surface: var(--bg-shell);
+  --color-elevated: var(--bg-elevated);
+  --color-recessed: var(--bg-recessed);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-content: var(--text-primary);
+  --color-content-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-tint: var(--brand-tint);
+  --color-on-brand: var(--on-brand);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-destructive: var(--destructive);
+  --color-destructive-tint: var(--destructive-tint);
+  --color-info: var(--info);
+  --color-info-tint: var(--info-tint);
+  --color-search: var(--search-bg);
+  --color-chip: var(--chip-bg);
 
   /* Radius terkunci 8px (rounded = 0.5rem). */
   --radius-lg: 0.5rem;
@@ -40,4 +131,6 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
 }

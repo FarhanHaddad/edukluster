@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 
 // Theme toggle: menambah/menghapus class `dark` di <html> + simpan preferensi.
-// Dark variant mengikuti DARK MODE CONTRACT (DESIGN.md v1.14/v1.15).
+// Kontrak: komponen hanya memakai token semantik (CONVENTIONS.md FE Conventions) —
+// tanpa prefix `dark:`; dark variant hidup di variabel CSS `.dark` (index.css).
 const THEME_KEY = 'edukluster.theme';
 
 function getInitialDark() {
@@ -14,6 +15,11 @@ function getInitialDark() {
 
 export default function ThemeToggle() {
   const [isDark, setIsDark] = useState(getInitialDark);
+
+  // Sinkronkan state bila tema berubah dari sumber lain (mis. skrip pre-hydration index.html).
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains('dark'));
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
@@ -37,12 +43,8 @@ export default function ThemeToggle() {
       onClick={handleToggle}
       aria-label={isDark ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
       title={isDark ? 'Mode terang' : 'Mode gelap'}
-      className={
-        // SHELL TOKEN LOCK (dark): theme toggle bg #27272A border #3F3F46.
-        'flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ' +
-        'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 ' +
-        'dark:border-zinc-700 dark:bg-zinc-700/60 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-white'
-      }
+      // SHELL TOKEN LOCK: theme toggle h-10, bg/tok border kuat (konsum token .dark otomatis).
+      className="flex h-10 w-10 items-center justify-center rounded-lg border border-line-strong bg-chip text-content-secondary transition-colors hover:text-content"
     >
       {isDark ? <Sun size={18} /> : <Moon size={18} />}
     </button>
