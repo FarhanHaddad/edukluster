@@ -45,6 +45,10 @@
   /* Disabled (light). */
   --disabled-bg: #e4e4e7;
   --disabled-text: #71717a;
+
+  /* Shell token lock (light): search recessed = putih, chip ⌘K & toggle = zinc-200. */
+  --search-bg: var(--input);
+  --chip-bg: #e4e4e7;
 }
 
 .dark {
@@ -79,8 +83,13 @@
   --info: #2563eb;
   --info-tint: rgb(37 99 235 / 0.15);
 
+  /* Disabled (dark). */
   --disabled-bg: #27272a;
   --disabled-text: #71717a;
+
+  /* Shell token lock (dark): search input #121215/#27272A; ⌘K & toggle #27272A/#3F3F46. */
+  --search-bg: #121215;
+  --chip-bg: #27272a;
 }
 
 @theme inline {
@@ -115,6 +124,8 @@
   --color-info-tint: var(--info-tint);
   --color-disabled-bg: var(--disabled-bg);
   --color-disabled-text: var(--disabled-text);
+  --color-search-bg: var(--search-bg);
+  --color-chip-bg: var(--chip-bg);
 
   /* Radius terkunci 8px (DESIGN.md geometry). */
   --radius-lg: 0.5rem;

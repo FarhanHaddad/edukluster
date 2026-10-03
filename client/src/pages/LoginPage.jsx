@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import ThemeToggle from '../components/ThemeToggle';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import widuri from '../assets/widuri.png';
 
 // Kontrak validasi searah BE (server/src/validations/auth.validation.js).
