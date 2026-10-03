@@ -12,6 +12,13 @@ Alur: Request -> middleware -> routes -> controller -> service -> Prisma -> MySQ
 - Theme: semantic CSS variables (:root=light, .dark=dark) di-map via Tailwind v4 `@theme inline`; komponen hanya pakai token semantik; prefix `dark:` dilarang; toggle = class `dark` di <html> + localStorage.
 - Components: DRY/LEGO — UI berulang diekstrak ke components (primitif ui + domain) dengan props; page hanya mengomposisi, dilarang copy-paste markup.
 
+## REST Client Collections (server/http/)
+- Satu file .rest per fitur/menu: auth.rest, periode.rest, dashboard.rest, siswa.rest, preprocessing.rest, kmeans.rest, profiling.rest, laporan.rest, riwayat.rest, admin.rest.
+- Struktur wajib tiap file: baris `@baseUrl = http://localhost:5000/api` → blok login `# @name login` (komentar status wajib) → baris `@token = {{login.response.body.data.token}}` → request fitur pakai `Authorization: Bearer {{token}}`.
+- Tiap request punya nomor + komentar ekspektasi status & tujuan (mis. `### 4. Create Duplikat (Wajib 409)`).
+- SYNC RULE (kontrak FE↔BE): file .rest = sumber kebenaran URL. Hook/lib FE WAJIB memanggil path yang sama persis dengan request di .rest. Setiap tiket yang menambah/mengubah endpoint BE wajib update file .rest terkait di commit yang sama + menyebutnya di laporan.
+- REGRESSION RULE: sebelum PR di-merge, Owner menjalankan semua blok file .rest fitur tersebut.
+
 ## Aturan File
 - Naming: x.routes.js, x.controller.js, x.service.js, x.validation.js
 - Controller <= ~100 baris; Service <= ~200 baris; lebih = pecah per domain.
