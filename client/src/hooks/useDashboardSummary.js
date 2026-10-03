@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 
-// GET /dashboard/summary (BE main: router dashboard + protect; interceptor 401 di
-// lib/api.js tetap berlaku -> token hangus otomatis lempar ke /login).
+// GET /dashboard (BE main: server/src/routes/dashboard.routes.js -> router.get('/');
+// path lama '/dashboard/summary' = 404). Interceptor 401 di lib/api.js tetap berlaku
+// -> token hangus otomatis lempar ke /login.
 // Shape data (server/src/services/dashboard.service.js):
 // { periodeAktif: {id,tahunAjaran,semester,namaPeriode,status}|null,
 //   totalSiswa, preprocessingStatus, kmeansStatus, jumlahCluster,
 //   recentRuns: [{id,status,startedAt,completedAt}] }
 async function fetchDashboardSummary() {
-  const res = await api.get('/dashboard/summary');
+  const res = await api.get('/dashboard');
   return res.data?.data ?? null;
 }
 
