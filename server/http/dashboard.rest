@@ -1,0 +1,31 @@
+### ============================================================
+### EduCluster — Dashboard API Collection
+### Path PERSIS yang dipanggil FE (client/src/hooks/useDashboardSummary.js):
+###   api.get('/dashboard') => GET {{BASE_URL}}/api/dashboard
+### Konfirmasi route BE: server/src/routes/index.js (mount /dashboard)
+###   + server/src/routes/dashboard.routes.js (router.get('/'))
+### ============================================================
+
+@BASE_URL = http://localhost:3000/api
+@EMAIL = admin@edukluster.test
+@PASSWORD = password123
+
+### 1) LOGIN — ambil token (hasil: 200, body.token disimpan manual di blok berikutnya)
+POST {{BASE_URL}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{EMAIL}}",
+  "password": "{{PASSWORD}}"
+}
+
+### 2) GET DASHBOARD SUMMARY — WAJIB 200 (dengan token)
+GET {{BASE_URL}}/dashboard
+Authorization: Bearer tempel-token-dari-respon-login-di-atas
+
+### 3) GET DASHBOARD SUMMARY — WAJIB 401 (tanpa token)
+GET {{BASE_URL}}/dashboard
+
+### 4) GET PERIODE AKTIF — pembanding sehat (WAJIB 200 dengan token)
+GET {{BASE_URL}}/periodes/active
+Authorization: Bearer tempel-token-dari-respon-login-di-atas
