@@ -5,23 +5,23 @@ import {
   CalendarDays,
   Users,
   SlidersHorizontal,
-  ChartScatter,
   CircleDot,
   Brain,
   FileText,
   History,
-  ShieldSettings,
   UserCog,
   MoreVertical,
   LogOut,
 } from 'lucide-react';
+import * as Lucide from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
 import widuri from '../../assets/widuri.png';
 
-// Ikon terkunci (DESIGN.md SHELL LOCK); fallback bila versi lucide tak menyediakan.
-const KmeansIcon = ChartScatter ?? CircleDot;
-const AdminIcon = ShieldSettings ?? UserCog;
+// Ikon terkunci (DESIGN.md SHELL LOCK) dengan fallback aman bila nama tidak
+// tersedia di versi lucide terpasang — akses dinamis, BUKAN named import.
+const KmeansIcon = Lucide.ChartScatter ?? CircleDot;
+const AdminIcon = Lucide.ShieldSettings ?? UserCog;
 
 // Grup menu terkunci: GENERAL / PROCESSING / OUTPUT / OTHER.
 const MENU_GROUPS = [

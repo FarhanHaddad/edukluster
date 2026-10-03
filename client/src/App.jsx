@@ -1,8 +1,22 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import RequireAuth from './components/RequireAuth';
+import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import PlaceholderPage from './components/domain/PlaceholderPage';
+
+// Menu shell yang belum dibangun — semua protected, render PlaceholderPage.
+const PLACEHOLDER_ROUTES = [
+  { path: '/periode', title: 'Periode' },
+  { path: '/siswa', title: 'Data Siswa' },
+  { path: '/preprocessing', title: 'Preprocessing' },
+  { path: '/kmeans', title: 'K-Means & Visualisasi' },
+  { path: '/profiling', title: 'Profiling & Rekomendasi' },
+  { path: '/laporan', title: 'Laporan' },
+  { path: '/riwayat', title: 'Riwayat' },
+  { path: '/admin', title: 'Manajemen Admin' },
+];
 
 export default function App() {
   return (
@@ -12,9 +26,14 @@ export default function App() {
           {/* Publik */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Terproteksi via RequireAuth */}
+          {/* Terproteksi via RequireAuth — tanpa token => /login */}
           <Route element={<RequireAuth />}>
-            <Route path="/" element={<DashboardPage />} />
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<DashboardPage />} />
+              {PLACEHOLDER_ROUTES.map(({ path, title }) => (
+                <Route key={path} path={path} element={<PlaceholderPage title={title} />} />
+              ))}
+            </Route>
           </Route>
 
           {/* Fallback */}
