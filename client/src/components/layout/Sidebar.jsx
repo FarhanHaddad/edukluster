@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutGrid,
   CalendarDays,
@@ -10,11 +9,9 @@ import {
   FileText,
   History,
   UserCog,
-  MoreVertical,
-  LogOut,
 } from 'lucide-react';
 import * as Lucide from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import ProfileMenu from '../ui/ProfileMenu';
 import { cn } from '../../lib/utils';
 import widuri from '../../assets/widuri.png';
 
@@ -77,16 +74,6 @@ function SidebarNavItem({ to, label, icon: Icon, end }) {
 
 // Sidebar 240px — logo row + grup menu + footer identitas (SHELL & IDENTITY LOCK).
 export default function Sidebar() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-  const [kebabOpen, setKebabOpen] = useState(false);
-
-  function handleKeluar() {
-    setKebabOpen(false);
-    logout(); // buang token sesi -> RequireAuth lempar ke /login
-    navigate('/login', { replace: true });
-  }
-
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-card">
       {/* Logo row: emblem widuri.png dlm container rounded-lg brand-tint */}
@@ -116,8 +103,9 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer identitas admin (FIXED): avatar 32px circle + nama/role + kebab */}
-      <div className="relative border-t border-line p-3">
+      {/* Footer identitas admin (FIXED): avatar 32px circle + nama/role + kebab.
+          Kebab => ProfileMenu (panel membuka KE ATAS; Logout lewat dialog konfirmasi). */}
+      <div className="border-t border-line p-3">
         <div className="flex items-center gap-3 rounded-lg px-1 py-1">
           <img
             src={widuri}
@@ -128,38 +116,8 @@ export default function Sidebar() {
             <p className="truncate text-sm font-semibold leading-5 text-ink">satnaing</p>
             <p className="truncate text-xs leading-4 text-muted">Admin SMA Widuri</p>
           </div>
-          <button
-            type="button"
-            aria-label="Menu akun"
-            aria-expanded={kebabOpen}
-            onClick={() => setKebabOpen((prev) => !prev)}
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-line hover:text-ink"
-          >
-            <MoreVertical size={16} />
-          </button>
+          <ProfileMenu trigger="kebab" align="right" />
         </div>
-
-        {kebabOpen && (
-          <>
-            {/* Backdrop transparan utk tutup menu lewat klik di luar */}
-            <button
-              type="button"
-              aria-label="Tutup menu"
-              className="fixed inset-0 z-10 cursor-default"
-              onClick={() => setKebabOpen(false)}
-            />
-            <div className="absolute bottom-full left-3 z-20 mb-1 w-44 rounded-lg border border-line bg-elevated p-1 shadow-sm">
-              <button
-                type="button"
-                onClick={handleKeluar}
-                className="flex h-9 w-full items-center gap-2 rounded-md px-3 text-sm font-medium text-danger-text transition-colors hover:bg-danger-tint"
-              >
-                <LogOut size={16} aria-hidden="true" />
-                Keluar
-              </button>
-            </div>
-          </>
-        )}
       </div>
     </aside>
   );
