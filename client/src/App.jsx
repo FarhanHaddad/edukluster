@@ -4,11 +4,11 @@ import RequireAuth from './components/RequireAuth';
 import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import PeriodePage from './pages/PeriodePage';
 import PlaceholderPage from './components/domain/PlaceholderPage';
 
 // Menu shell yang belum dibangun — semua protected, render PlaceholderPage.
 const PLACEHOLDER_ROUTES = [
-  { path: '/periode', title: 'Periode' },
   { path: '/siswa', title: 'Data Siswa' },
   { path: '/preprocessing', title: 'Preprocessing' },
   { path: '/kmeans', title: 'K-Means & Visualisasi' },
@@ -30,6 +30,7 @@ export default function App() {
           <Route element={<RequireAuth />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<DashboardPage />} />
+              <Route path="/periode" element={<PeriodePage />} />
               {PLACEHOLDER_ROUTES.map(({ path, title }) => (
                 <Route key={path} path={path} element={<PlaceholderPage title={title} />} />
               ))}
