@@ -8,13 +8,12 @@ import {
   SlidersHorizontal,
   Brain,
   FileDown,
-  ChartScatter,
   CircleDot,
   CalendarPlus,
   Users,
-  FolderSearch,
   FileSpreadsheet,
 } from 'lucide-react';
+import * as Lucide from 'lucide-react';
 import useDashboardSummary from '../hooks/useDashboardSummary';
 import PageHeader from '../components/domain/PageHeader';
 import PeriodChip from '../components/domain/PeriodChip';
@@ -27,7 +26,7 @@ import Button from '../components/ui/Button';
 import { formatAngka } from '../lib/format';
 
 // Fallback ikon utk versi lucide tanpa nama baru.
-const ClusterIcon = ChartScatter ?? CircleDot;
+const ClusterIcon = Lucide.ChartScatter ?? CircleDot;
 
 // Peta status run BE -> nilai kartu (mono-friendly) + caption badge (DESIGN.md).
 const PREPROC_MAP = {
