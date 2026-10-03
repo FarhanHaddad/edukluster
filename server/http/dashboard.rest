@@ -1,31 +1,20 @@
-### ============================================================
-### EduCluster — Dashboard API Collection
-### Path PERSIS yang dipanggil FE (client/src/hooks/useDashboardSummary.js):
-###   api.get('/dashboard') => GET {{BASE_URL}}/api/dashboard
-### Konfirmasi route BE: server/src/routes/index.js (mount /dashboard)
-###   + server/src/routes/dashboard.routes.js (router.get('/'))
-### ============================================================
+@baseUrl = http://localhost:5000/api
 
-@BASE_URL = http://localhost:3000/api
-@EMAIL = admin@edukluster.test
-@PASSWORD = password123
-
-### 1) LOGIN — ambil token (hasil: 200, body.token disimpan manual di blok berikutnya)
-POST {{BASE_URL}}/auth/login
+### 0. Login (Wajib 200 + token)
+# @name login
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
-{
-  "email": "{{EMAIL}}",
-  "password": "{{PASSWORD}}"
-}
+{ "username": "satnaing", "password": "widuri2026" }
 
-### 2) GET DASHBOARD SUMMARY — WAJIB 200 (dengan token)
-GET {{BASE_URL}}/dashboard
-Authorization: Bearer tempel-token-dari-respon-login-di-atas
+### 1. Get Dashboard Summary (Wajib 200; shape FR-B03: periodeAktif, totalSiswa, preprocessingStatus, kmeansStatus, jumlahCluster, recentRuns)
+@token = {{login.response.body.data.token}}
+GET {{baseUrl}}/dashboard
+Authorization: Bearer {{token}}
 
-### 3) GET DASHBOARD SUMMARY — WAJIB 401 (tanpa token)
-GET {{BASE_URL}}/dashboard
+### 2. Get Dashboard Summary tanpa token (Wajib 401)
+GET {{baseUrl}}/dashboard
 
-### 4) GET PERIODE AKTIF — pembanding sehat (WAJIB 200 dengan token)
-GET {{BASE_URL}}/periodes/active
-Authorization: Bearer tempel-token-dari-respon-login-di-atas
+### 3. Get Periode Active — pembanding sehat (Wajib 200, status AKTIF)
+GET {{baseUrl}}/periodes/active
+Authorization: Bearer {{token}}
