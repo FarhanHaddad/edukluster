@@ -1,0 +1,20 @@
+@baseUrl = http://localhost:5000/api
+
+### 0. Login (Wajib 200 + token)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "satnaing", "password": "widuri2026" }
+
+### 1. Get Dashboard Summary (Wajib 200; shape FR-B03: periodeAktif, totalSiswa, preprocessingStatus, kmeansStatus, jumlahCluster, recentRuns)
+@token = {{login.response.body.data.token}}
+GET {{baseUrl}}/dashboard
+Authorization: Bearer {{token}}
+
+### 2. Get Dashboard Summary tanpa token (Wajib 401)
+GET {{baseUrl}}/dashboard
+
+### 3. Get Periode Active — pembanding sehat (Wajib 200, status AKTIF)
+GET {{baseUrl}}/periodes/active
+Authorization: Bearer {{token}}
