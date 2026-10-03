@@ -1,33 +1,122 @@
 @import 'tailwindcss';
 
-/* Kelas .dark di <html> mengontrol dark mode (DESIGN.md: theme toggle). */
+/*
+ * THEME SYSTEM (docs/CONVENTIONS.md "FE Conventions" + docs/DESIGN.md):
+ * - :root = token LIGHT; .dark = DARK MODE CONTRACT v1.0 persis.
+ * - Token dipetakan via `@theme inline` menjadi utility SEMANTIK
+ *   (bg-page, bg-card, border-line, text-muted, bg-brand, ...).
+ * - Komponen HANYA memakai token semantik; prefix `dark:` DILARANG.
+ */
 @custom-variant dark (&:where(.dark, .dark *));
 
-@theme {
-  /* Font (DESIGN.md): Inter untuk UI; JetBrains Mono HANYA untuk NIS/angka/skor/timestamp/kode. */
+:root {
+  /* Light: page #F4F4F5; card/sidebar/topbar #FFFFFF; border zinc-200. */
+  --page: #f4f4f5;
+  --card: #ffffff;
+  --elevated: #ffffff;
+  --input: #ffffff;
+  --line: #e4e4e7; /* zinc-200 */
+  --line-strong: #d4d4d8; /* zinc-300 */
+
+  /* Teks: primary #18181B; muted #71717A; placeholder faint. */
+  --text: #18181b;
+  --muted: #71717a;
+  --faint: #a1a1aa;
+
+  /* Brand (light): #A64DC4; tint 10%; on-brand putih utk CTA solid. */
+  --brand: #a64dc4;
+  --brand-hover: #8f39ac;
+  --brand-active: #793191;
+  --on-brand: #ffffff;
+  --brand-tint: rgb(166 77 196 / 0.1);
+  --brand-border: rgb(166 77 196 / 0.25);
+
+  /* Semantic soft badge (tint 10% + teks solid). */
+  --success: #16a34a;
+  --success-tint: rgb(22 163 74 / 0.1);
+  --warning: #d97706;
+  --warning-tint: rgb(217 119 6 / 0.1);
+  --danger: #dc2626;
+  --danger-text: #ba1a1a;
+  --danger-tint: rgb(220 38 38 / 0.1);
+  --info: #2563eb;
+  --info-tint: rgb(37 99 235 / 0.1);
+
+  /* Disabled (light). */
+  --disabled-bg: #e4e4e7;
+  --disabled-text: #71717a;
+}
+
+.dark {
+  /* DARK MODE CONTRACT v1.0 — page #09090B; card/sidebar/topbar #18181B;
+     elevated #1E1E24; recessed input #121215; border #27272A/#3F3F46;
+     teks #FAFAFA/#A1A1AA/#71717A; brand #BE7DD4; on-brand #18181B. */
+  --page: #09090b;
+  --card: #18181b;
+  --elevated: #1e1e24;
+  --input: #121215;
+  --line: #27272a;
+  --line-strong: #3f3f46;
+
+  --text: #fafafa;
+  --muted: #a1a1aa;
+  --faint: #71717a;
+
+  --brand: #be7dd4;
+  --brand-hover: #b266cc;
+  --brand-active: #a554c2;
+  --on-brand: #18181b;
+  --brand-tint: rgb(190 125 212 / 0.15);
+  --brand-border: rgb(190 125 212 / 0.25);
+
+  --success: #16a34a;
+  --success-tint: rgb(22 163 74 / 0.15);
+  --warning: #d97706;
+  --warning-tint: rgb(217 119 6 / 0.15);
+  --danger: #dc2626;
+  --danger-text: #f87171;
+  --danger-tint: rgb(220 38 38 / 0.15);
+  --info: #2563eb;
+  --info-tint: rgb(37 99 235 / 0.15);
+
+  --disabled-bg: #27272a;
+  --disabled-text: #71717a;
+}
+
+@theme inline {
+  /* Font (DESIGN.md): Inter untuk UI; JetBrains Mono HANYA angka/NIS/timestamp/chip. */
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  /* Netral zinc — dipakai konsisten di light & dark (GLOBAL LOCK RULES v1.4). */
-  --color-zinc-50: #fafafa;
-  --color-zinc-100: #f4f4f5;
-  --color-zinc-200: #e4e4e7;
-  --color-zinc-300: #d4d4d8;
-  --color-zinc-400: #a1a1aa;
-  --color-zinc-500: #71717a;
-  --color-zinc-600: #52525b;
-  --color-zinc-700: #3f3f46;
-  --color-zinc-800: #18181b;
-  --color-zinc-900: #09090b;
+  /* Utility semantik (auto switch lewat var :root/.dark). */
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-elevated: var(--elevated);
+  --color-input: var(--input);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-active: var(--brand-active);
+  --color-on-brand: var(--on-brand);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-border: var(--brand-border);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-danger-tint: var(--danger-tint);
+  --color-info: var(--info);
+  --color-info-tint: var(--info-tint);
+  --color-disabled-bg: var(--disabled-bg);
+  --color-disabled-text: var(--disabled-text);
 
-  /* Brand (light) + brand (DARK MODE CONTRACT). */
-  --color-brand: #a64dc4;
-  --color-brand-hover: #8f39ac;
-  --color-brand-active: #793191;
-  --color-brand-dark: #be7dd4;
-  --color-brand-dark-hover: #b266cc;
-
-  /* Radius terkunci 8px (rounded = 0.5rem). */
+  /* Radius terkunci 8px (DESIGN.md geometry). */
   --radius-lg: 0.5rem;
 }
 
@@ -40,4 +129,6 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: var(--page);
+  color: var(--text);
 }
