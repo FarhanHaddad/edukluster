@@ -6,13 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EduCluster SMA Widuri</title>
     <script>
-      // Terapkan tema tersimpan sebelum React mount agar tidak ada flash.
+      // Anti-FOUC: terapkan preferensi tema SEBELUM React mount.
+      // Logika ini DITULIS ULANG secara identik di client/src/hooks/useTheme.js
+      // (applyThemeMode/readStoredMode) — jaga keduanya tetap sinkron.
       (function () {
         try {
-          var t = localStorage.getItem('edukluster.theme');
-          if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
+          var m = localStorage.getItem('theme-mode');
+          if (m !== 'light' && m !== 'dark' && m !== 'system') {
+            // Migrasi key lama era Screen 1; default = ikut sistem.
+            var legacy = localStorage.getItem('edukluster.theme');
+            m = legacy === 'dark' ? 'dark' : legacy === 'light' ? 'light' : 'system';
           }
+          var dark =
+            m === 'dark' ||
+            (m === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
         } catch (e) {
           /* noop */
         }

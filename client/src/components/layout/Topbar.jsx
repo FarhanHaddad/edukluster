@@ -1,9 +1,9 @@
 import { Search } from 'lucide-react';
-import ThemeToggle from '../ui/ThemeToggle';
-import widuri from '../../assets/widuri.png';
+import ThemeToggle from '../ui/ThemeMenu';
+import ProfileMenu from '../ui/ProfileMenu';
 
-// Topbar (GLOBAL LOCK RULES #1): HANYA search (+chip ⌘K), theme toggle, avatar.
-// NOL bell, NOL help, NOL ikon ekstra.
+// Topbar (GLOBAL LOCK RULES #1): HANYA search (+chip ⌘K), theme menu, avatar.
+// NOL bell, NOL help, NOL ikon ekstra. Avatar = anchor ProfileMenu (panel kanan-atas).
 export default function Topbar() {
   return (
     <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-card px-6">
@@ -27,12 +27,9 @@ export default function Topbar() {
 
       <div className="ml-auto flex items-center gap-3">
         <ThemeToggle />
-        {/* Avatar polos 32px circle (tanpa wrapper tint) — SHELL & IDENTITY LOCK */}
-        <img
-          src={widuri}
-          alt="Avatar admin"
-          className="size-8 shrink-0 rounded-full object-cover"
-        />
+        {/* Avatar polos 32px circle (tanpa wrapper tint) — SHELL & IDENTITY LOCK.
+            Klik => ProfileMenu (header + Pengaturan Akun + Logout via dialog). */}
+        <ProfileMenu trigger="avatar" align="right" />
       </div>
     </header>
   );
