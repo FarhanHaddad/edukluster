@@ -61,8 +61,8 @@ export default function ActivatePeriodeDialog({ open, onClose, periode, aktifNow
         {current ? (
           <>
             Periode <span className="font-semibold">{current}</span> akan ditandai selesai dan
-          {' '}</>
-        ) : null}
+          </>
+        ) : null}{' '}
         seluruh modul akan mengikuti periode baru ini.
       </p>
 
