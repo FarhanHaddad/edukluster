@@ -3,6 +3,7 @@ import { CalendarDays, Plus } from 'lucide-react';
 import usePeriodes from '../hooks/usePeriodes';
 import PageHeader from '../components/domain/PageHeader';
 import PeriodChip from '../components/domain/PeriodChip';
+import InfoBanner from '../components/domain/InfoBanner';
 import PeriodeTable from '../components/domain/PeriodeTable';
 import CreatePeriodeDialog from '../components/domain/CreatePeriodeDialog';
 import ActivatePeriodeDialog from '../components/domain/ActivatePeriodeDialog';
@@ -25,18 +26,23 @@ export default function PeriodePage() {
     <div className="space-y-6">
       <PageHeader
         title="Periode"
-        active={!!aktifNow}
-        description="Kelola periode akademik klasterisasi. Satu periode dapat aktif pada satu waktu."
+        description="Kelola tahun ajaran dan semester untuk pemisahan data antar angkatan."
         periodChip={aktifNow ? <PeriodChip namaPeriode={aktifNow.namaPeriode} /> : null}
       />
 
+      {/* Banner info dismissible (frame 3A rev2): aturan satu periode aktif. */}
+      <InfoBanner>
+        Hanya satu periode aktif pada satu waktu. Mengaktifkan periode baru akan menggantikan
+        konteks seluruh modul.
+      </InfoBanner>
+
       <Card padded={false}>
-        {/* Header kartu: sub-judul "Daftar Periode" + CTA solid brand */}
+        {/* Header kartu: sub-judul "Daftar Periode" + CTA solid brand (frame 3A rev2). */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4">
           <h2 className="text-sm font-semibold text-ink">Daftar Periode</h2>
           <Button onClick={() => setCreateOpen(true)}>
             <Plus size={16} aria-hidden="true" />
-            Tambah Periode
+            Buat Periode Baru
           </Button>
         </div>
 
@@ -49,7 +55,7 @@ export default function PeriodePage() {
               icon={CalendarDays}
               title="Belum Ada Periode"
               description="Buat periode pertama untuk memulai alur klasterisasi siswa."
-              ctaLabel="Tambah Periode"
+              ctaLabel="Buat Periode Baru"
               onCtaClick={() => setCreateOpen(true)}
             />
           </div>
