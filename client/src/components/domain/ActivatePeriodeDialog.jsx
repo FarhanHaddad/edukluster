@@ -6,7 +6,7 @@ import useActivatePeriode from '../../hooks/useActivatePeriode';
 // Nama periode human-readable dari item API (fallback gabungan field).
 function labelPeriode(p) {
   if (!p) return null;
-  return p.namaPeriode ?? `${p.tahunAjaran ?? ''}`.trim() || null;
+  return p.namaPeriode ?? (`${p.tahunAjaran ?? ''}`.trim() || null);
 }
 
 // Dialog konfirmasi aktivasi (frame 3C/3D rev2): ikon warning amber, judul
@@ -61,7 +61,7 @@ export default function ActivatePeriodeDialog({ open, onClose, periode, aktifNow
         {current ? (
           <>
             Periode <span className="font-semibold">{current}</span> akan ditandai selesai dan
-          </>{' '}
+          {' '}</>
         ) : null}
         seluruh modul akan mengikuti periode baru ini.
       </p>
