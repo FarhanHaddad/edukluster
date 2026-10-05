@@ -3,14 +3,16 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { cn } from '../../lib/utils';
 
-// EmptyState Screen 2 State A/C: ikon + heading + deskripsi + CTA solid brand
-// (opsional link teks) + slot step cards. Komposisi murni dari primitif ui/.
+// EmptyState generik (Screen 2 State A/C + Screen 3 list kosong): ikon + heading +
+// deskripsi + CTA solid brand (link via ctaTo ATAU tombol aksi via onCtaClick)
+// + opsional link teks + slot children. Komposisi murni dari primitif ui/.
 export default function EmptyState({
   icon: Icon,
   title,
   description,
   ctaLabel,
   ctaTo,
+  onCtaClick,
   linkLabel,
   linkTo,
   children,
@@ -30,7 +32,12 @@ export default function EmptyState({
 
       {(ctaLabel || linkLabel) && (
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          {ctaLabel ? (
+          {ctaLabel && onCtaClick ? (
+            <Button variant="solid" className="w-full sm:w-auto" onClick={onCtaClick}>
+              {ctaLabel}
+            </Button>
+          ) : null}
+          {ctaLabel && ctaTo ? (
             <Link to={ctaTo}>
               {/* Link membungkus tombol: isi penuh agar tinggi tetap 40px */}
               <Button variant="solid" className="w-full sm:w-auto">
