@@ -1,5 +1,37 @@
 @baseUrl = http://localhost:5000/api
 
+### 1. Health
+GET {{baseUrl}}/health
+
+### 2. Login benar (token otomatis tertangkap)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "satnaing", "password": "widuri2026" }
+
+### 3. Login password SALAH bentuk valid → wajib 401 pesan generik
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "satnaing", "password": "salah123" }
+
+### 4. Body kosong → 400 field errors
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ }
+
+### 5. Me tanpa token → 401
+GET {{baseUrl}}/auth/me
+
+### 6. Me dengan token chaining → wajib 200
+@token = {{login.response.body.data.token}}
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+@baseUrl = http://localhost:5000/api
+
 ### 0. Login (Wajib 200 + token)
 # @name login
 POST {{baseUrl}}/auth/login
