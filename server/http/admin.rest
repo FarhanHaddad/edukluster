@@ -1,0 +1,95 @@
+@baseUrl = http://localhost:5000/api
+
+### 0. Login (Wajib 200 + token)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "satnaing", "password": "widuri2026" }
+
+### 1. List Admins (Wajib 200, items TANPA password, id berupa Number BUKAN string "1")
+@token = {{login.response.body.data.token}}
+GET {{baseUrl}}/admins
+Authorization: Bearer {{token}}
+
+### 2. List Admins tanpa token (Wajib 401 'Token tidak valid.')
+GET {{baseUrl}}/admins
+
+### 3. Create Admin Baru (Wajib 201, name default = username, status true)
+POST {{baseUrl}}/admins
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "username": "adminbaru", "password": "rahasia123" }
+
+### 4. Create Duplikat Username (Wajib 409 'Username sudah terdaftar.')
+POST {{baseUrl}}/admins
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "username": "satnaing", "password": "rahasia123" }
+
+### 5. Create Validasi Gagal (Wajib 400, username < 3 & password < 6 karakter)
+POST {{baseUrl}}/admins
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "username": "ab", "password": "123" }
+
+### 6. Update Admin (Wajib 200, password kosong = tidak diubah)
+# ⚠️ GANTI ANGKA '2' DI BAWAH DENGAN ID DARI RESPONSE NOMOR 3
+PUT {{baseUrl}}/admins/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "username": "adminbaru2", "password": "" }
+
+### 7. Update Username Tabrak Milik Orang Lain (Wajib 409 'Username sudah terdaftar.')
+PUT {{baseUrl}}/admins/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "username": "satnaing" }
+
+### 8. Update ID Ngawur (Wajib 404 'Admin tidak ditemukan.')
+PUT {{baseUrl}}/admins/999
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "username": "apapun123" }
+
+### 9. Toggle Status Admin Lain NONAKTIF (Wajib 200, status jadi false)
+PATCH {{baseUrl}}/admins/2/status
+Authorization: Bearer {{token}}
+
+### 10. Toggle Kembali AKTIF (Wajib 200, status jadi true)
+PATCH {{baseUrl}}/admins/2/status
+Authorization: Bearer {{token}}
+
+### 11. Toggle Nonaktifkan Diri Sendiri (Wajib 409 'Anda tidak dapat menonaktifkan akun sendiri.')
+# ⚠️ GANTI ANGKA '1' DENGAN ID ADMIN YANG LOGIN (lihat response #0 data.admin.id)
+PATCH {{baseUrl}}/admins/1/status
+Authorization: Bearer {{token}}
+
+### 12. Toggle ID Ngawur (Wajib 404 'Admin tidak ditemukan.')
+PATCH {{baseUrl}}/admins/999/status
+Authorization: Bearer {{token}}
+
+### 13. Hapus Diri Sendiri (Wajib 409 'Anda tidak dapat menghapus akun sendiri.')
+# ⚠️ GANTI ANGKA '1' DENGAN ID ADMIN YANG LOGIN
+DELETE {{baseUrl}}/admins/1
+Authorization: Bearer {{token}}
+
+### 14. Hapus Admin Ber-riwayat Eksekusi (Wajib 409 'Admin memiliki riwayat eksekusi sehingga tidak dapat dihapus.')
+# ⚠️ GANTI ID DENGAN admin yang punya baris di kmeans_run/preprocessing_run
+DELETE {{baseUrl}}/admins/998
+Authorization: Bearer {{token}}
+
+### 15. Hapus Admin Biasa (Wajib 200) — jalankan SETELAH #3 membuat admin baru
+# ⚠️ GANTI ANGKA '2' DENGAN ID DARI RESPONSE NOMOR 3
+DELETE {{baseUrl}}/admins/2
+Authorization: Bearer {{token}}
+
+### 16. Hapus ID Ngawur (Wajib 404 'Admin tidak ditemukan.')
+DELETE {{baseUrl}}/admins/999
+Authorization: Bearer {{token}}
