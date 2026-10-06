@@ -5,6 +5,7 @@ import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import PeriodePage from './pages/PeriodePage';
+import AdminPage from './pages/AdminPage';
 import PlaceholderPage from './components/domain/PlaceholderPage';
 
 // Menu shell yang belum dibangun — semua protected, render PlaceholderPage.
@@ -15,7 +16,6 @@ const PLACEHOLDER_ROUTES = [
   { path: '/profiling', title: 'Profiling & Rekomendasi' },
   { path: '/laporan', title: 'Laporan' },
   { path: '/riwayat', title: 'Riwayat' },
-  { path: '/admin', title: 'Manajemen Admin' },
 ];
 
 export default function App() {
@@ -31,6 +31,7 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/periode" element={<PeriodePage />} />
+              <Route path="/admin" element={<AdminPage />} />
               {PLACEHOLDER_ROUTES.map(({ path, title }) => (
                 <Route key={path} path={path} element={<PlaceholderPage title={title} />} />
               ))}
