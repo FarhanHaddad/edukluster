@@ -62,6 +62,8 @@ async function createAdmin({ username, password, name, email }) {
         name: name || username,
         email: email || null,
         status: true,
+        // Schema Admin.createdAt = DateTime? tanpa @default(now()) → isi eksplisit saat create.
+        createdAt: new Date(),
       },
       select: SAFE_ADMIN_SELECT,
     });
