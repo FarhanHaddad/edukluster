@@ -44,7 +44,7 @@ async function login({ username, password }) {
 async function me(id) {
   const admin = await prisma.admin.findUnique({
     where: { id: BigInt(id) },
-    select: { id: true, username: true, name: true, email: true },
+    select: { id: true, username: true, name: true },
   });
 
   if (!admin) {
@@ -55,7 +55,6 @@ async function me(id) {
     id: Number(admin.id),
     username: admin.username,
     name: admin.name,
-    email: admin.email,
   };
 }
 

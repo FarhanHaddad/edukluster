@@ -7,7 +7,6 @@ const SAFE_ADMIN_SELECT = {
   id: true,
   name: true,
   username: true,
-  email: true,
   status: true,
   createdAt: true,
 };
@@ -18,7 +17,6 @@ function toResponseItem(admin) {
     id: Number(admin.id),
     name: admin.name,
     username: admin.username,
-    email: admin.email,
     status: admin.status,
     createdAt: admin.createdAt,
   };
@@ -27,12 +25,7 @@ function toResponseItem(admin) {
 // Peta error unique Prisma (P2002) ke pesan 409 sesuai kontrak FE.
 function throwUniqueConflict(err) {
   if (err && err.code === 'P2002') {
-    const target = (err.meta && err.meta.target) || '';
-    // Normalisasi nama field (Prisma bisa mengirim 'email', ['email'], atau indeks 'admins.email_idx').
-    const flat = Array.isArray(target) ? target.join(',') : String(target);
-    if (flat.includes('email')) {
-      throw new ApiError(409, 'Email sudah terdaftar.');
-    }
+    // Satu-satunya constraint unik yang dipakai modul admin = username.
     throw new ApiError(409, 'Username sudah terdaftar.');
   }
   throw err;
@@ -50,7 +43,7 @@ async function listAdmins() {
 }
 
 // POST /api/admins — buat admin baru; password di-hash bcrypt (FR-A03).
-async function createAdmin({ username, password, name, email }) {
+async function createAdmin({ username, password, name }) {
   const passwordHash = await bcrypt.hash(password, 10);
 
   try {
@@ -60,8 +53,9 @@ async function createAdmin({ username, password, name, email }) {
         password: passwordHash,
         // name absen dari body FE → default = username.
         name: name || username,
-        email: email || null,
         status: true,
+        // Schema Admin.createdAt = DateTime? tanpa @default(now()) → isi eksplisit saat create.
+        createdAt: new Date(),
       },
       select: SAFE_ADMIN_SELECT,
     });
