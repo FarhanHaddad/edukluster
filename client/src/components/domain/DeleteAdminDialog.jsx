@@ -71,7 +71,7 @@ export default function DeleteAdminDialog({ open, admin, onClose }) {
         <Button variant="outline" onClick={onClose} type="button">
           Batal
         </Button>
-        <Button variant="danger" onClick={handleDelete} disabled={mutation.isPending}>
+        <Button variant="destructive" onClick={handleDelete} disabled={mutation.isPending}>
           {mutation.isPending ? 'Menghapus...' : 'Hapus Admin'}
         </Button>
       </div>
