@@ -16,6 +16,10 @@ const buttonVariants = cva(
         outline: 'border border-line-strong bg-transparent text-ink hover:bg-brand-tint',
         // Emphasis: aksi brand-contextual (mis. Jalankan Preprocessing / Eksekusi K-Means).
         emphasis: 'bg-brand-tint text-brand hover:bg-brand hover:text-on-brand',
+        // Destructive: aksi destruktif (mis. Hapus Admin).
+        destructive: 'bg-danger text-on-brand hover:brightness-95 active:brightness-90',
+        // Alias variant danger untuk kompatibilitas
+        danger: 'bg-danger text-on-brand hover:brightness-95 active:brightness-90',
       },
       size: {
         md: 'h-10 px-4',
