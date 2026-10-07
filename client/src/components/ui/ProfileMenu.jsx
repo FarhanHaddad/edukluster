@@ -1,24 +1,26 @@
-import { useState } from 'react';
-import { Settings, LogOut, MoreVertical } from 'lucide-react';
-import Menu, { MenuItem } from './Menu';
-import LogoutDialog from './LogoutDialog';
-import { cn } from '../../lib/utils';
-import widuri from '../../assets/widuri.png';
+import { useState } from "react";
+import { Settings, LogOut, MoreVertical } from "lucide-react";
+import Menu, { MenuItem } from "./Menu";
+import LogoutDialog from "./LogoutDialog";
+import { cn } from "../../lib/utils";
+import widuri from "../../assets/widuri.png";
+import { useNavigate } from "react-router-dom";
 
 // ProfileMenu (SHELL-POLISH #3): SATU komponen, DUA anchor —
 // - avatar topbar (trigger='avatar', panel ke bawah, align right),
 // - kebab footer sidebar (trigger='kebab', panel membuka KE ATAS).
 // Isi: header identitas (widuri 32px + 'satnaing') -> divider -> Pengaturan Akun
 // (no-op, TODO Sprint berikutnya) -> Logout => BUKA LogoutDialog (BUKAN logout langsung).
-export default function ProfileMenu({ trigger = 'avatar', align = 'right' }) {
+export default function ProfileMenu({ trigger = "avatar", align = "right" }) {
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const placement = trigger === 'kebab' ? 'up' : 'down';
+  const navigate = useNavigate();
+  const placement = trigger === "kebab" ? "up" : "down";
 
   return (
     <>
       <Menu align={align} placement={placement} className="w-52">
         {({ open, toggle, close }) => [
-          trigger === 'kebab' ? (
+          trigger === "kebab" ? (
             <button
               key="trigger"
               type="button"
@@ -27,8 +29,7 @@ export default function ProfileMenu({ trigger = 'avatar', align = 'right' }) {
               aria-haspopup="menu"
               aria-expanded={open}
               title="Menu akun"
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-line hover:text-ink"
-            >
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-line hover:text-ink">
               <MoreVertical size={16} />
             </button>
           ) : (
@@ -40,12 +41,11 @@ export default function ProfileMenu({ trigger = 'avatar', align = 'right' }) {
               aria-haspopup="menu"
               aria-expanded={open}
               title="Menu profil akun"
-              className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-            >
+              className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
               <img
                 src={widuri}
                 alt="Avatar satnaing"
-                className={cn('size-8 rounded-full object-cover')}
+                className={cn("size-8 rounded-full object-cover")}
               />
             </button>
           ),
@@ -63,10 +63,9 @@ export default function ProfileMenu({ trigger = 'avatar', align = 'right' }) {
             key="settings"
             icon={Settings}
             onClick={() => {
-              // TODO (Sprint berikutnya): navigasi/panel Pengaturan Akun. No-op disengaja.
-              close();
-            }}
-          >
+              close(); // tutup menu dulu (pola sama kayak Logout)
+              navigate("/admin"); // Pengaturan Akun = Manajemen Admin (FR-A03), ruling Owner
+            }}>
             Pengaturan Akun
           </MenuItem>,
           <MenuItem
@@ -76,8 +75,7 @@ export default function ProfileMenu({ trigger = 'avatar', align = 'right' }) {
             onClick={() => {
               close();
               setLogoutOpen(true);
-            }}
-          >
+            }}>
             Logout
           </MenuItem>,
         ]}
