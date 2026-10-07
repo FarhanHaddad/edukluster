@@ -13,7 +13,6 @@ async function main() {
       username: "satnaing",
       password: passwordHash,
       name: "SatNaing", //⚠️ pakai `name`, BUKAN `nama`
-      email: "satnaing@widuri.sch.id", // kolom email ada di database, isi dummy dulu
       status: true, // admin aktif (Sprint 2: Manajemen Admin)
     },
   });
