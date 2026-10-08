@@ -103,11 +103,24 @@ const createSiswaSchema = z.object({
   non_akademik: nonAkademikSchema.optional(),
 });
 
+// Schema khusus update nilai: semua jenis opsional (manual optional, TANPA
+// .partial() — Zod v4 melarang .partial() pada object schema ber-.refine()).
+const updateNilaiAkademikSchema = z
+  .object({
+    rapor: nilaiMapelSchema.optional(),
+    pts: nilaiMapelSchema.optional(),
+    pas: nilaiMapelSchema.optional(),
+  })
+  .optional();
+
 // PUT /api/siswa/:id — semua field opsional; bila dikirim, tetap divalidasi penuh.
 const updateSiswaSchema = z.object({
   periode_id: z.coerce.number().int().positive('Periode tidak valid').optional(),
-  ...identitasSchema.partial().shape,
-  nilai: nilaiAkademikSchema.partial().optional(),
+  nis: identitasSchema.shape.nis.optional(),
+  nama: identitasSchema.shape.nama.optional(),
+  jenis_kelamin: identitasSchema.shape.jenis_kelamin.optional(),
+  kelas: identitasSchema.shape.kelas.optional(),
+  nilai: updateNilaiAkademikSchema,
   non_akademik: nonAkademikSchema.optional(),
 });
 
