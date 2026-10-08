@@ -1,0 +1,176 @@
+@baseUrl = http://localhost:5000/api
+
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "satnaing", "password": "widuri2026" }
+
+### 1. List Siswa (Wajib 200, items array + total/page/limit Number)
+@token = {{login.response.body.data.token}}
+GET {{baseUrl}}/siswa?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### 2. List Siswa Tanpa Token (Wajib 401)
+GET {{baseUrl}}/siswa
+
+### 3. Create Siswa Single Input Valid (Wajib 201, id Number + siswa_periode_id)
+POST {{baseUrl}}/siswa
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nis": "2101",
+  "nama": "Farhan Haddad",
+  "jenis_kelamin": "L",
+  "kelas": "XII-1",
+  "nilai": {
+    "rapor": {
+      "agama": 90, "pkn": 88, "b_indonesia": 85, "b_inggris": 82, "mtk_wajib": 78,
+      "sejarah": 80, "pjok": 92, "seni_rupa": 87, "b_jepang": 84, "biologi": 76,
+      "fisika": 74, "kimia": 72, "informatika": 95, "mtk_lanjut": 70, "geografi": 81,
+      "sosial": 83, "pkwu": 86, "ekonomi": 89
+    },
+    "pts": {
+      "agama": 89, "pkn": 87, "b_indonesia": 84, "b_inggris": 81, "mtk_wajib": 77,
+      "sejarah": 79, "pjok": 91, "seni_rupa": 86, "b_jepang": 83, "biologi": 75,
+      "fisika": 73, "kimia": 71, "informatika": 94, "mtk_lanjut": 69, "geografi": 80,
+      "sosial": 82, "pkwu": 85, "ekonomi": 88
+    },
+    "pas": {
+      "agama": 91, "pkn": 89, "b_indonesia": 86, "b_inggris": 83, "mtk_wajib": 79,
+      "sejarah": 81, "pjok": 93, "seni_rupa": 88, "b_jepang": 85, "biologi": 77,
+      "fisika": 75, "kimia": 73, "informatika": 96, "mtk_lanjut": 71, "geografi": 82,
+      "sosial": 84, "pkwu": 87, "ekonomi": 90
+    }
+  },
+  "non_akademik": {
+    "ekstrakurikuler": "Pramuka",
+    "prestasi": "Juara 2 OSN Informatika",
+    "kemampuan": "Programming",
+    "organisasi": "OSIS",
+    "kursus": "Bootcamp Web Dev",
+    "jurusan_1": "RPL",
+    "jurusan_2": "TI"
+  }
+}
+
+### 4. Create Siswa NIS Duplikat (Wajib 409, 'NIS sudah terdaftar.')
+POST {{baseUrl}}/siswa
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nis": "2101",
+  "nama": "Duplikat NIS",
+  "jenis_kelamin": "P",
+  "kelas": "XII-2",
+  "nilai": {
+    "rapor": {
+      "agama": 80, "pkn": 80, "b_indonesia": 80, "b_inggris": 80, "mtk_wajib": 80,
+      "sejarah": 80, "pjok": 80, "seni_rupa": 80, "b_jepang": 80, "biologi": 80,
+      "fisika": 80, "kimia": 80, "informatika": 80, "mtk_lanjut": 80, "geografi": 80,
+      "sosial": 80, "pkwu": 80, "ekonomi": 80
+    },
+    "pts": {
+      "agama": 80, "pkn": 80, "b_indonesia": 80, "b_inggris": 80, "mtk_wajib": 80,
+      "sejarah": 80, "pjok": 80, "seni_rupa": 80, "b_jepang": 80, "biologi": 80,
+      "fisika": 80, "kimia": 80, "informatika": 80, "mtk_lanjut": 80, "geografi": 80,
+      "sosial": 80, "pkwu": 80, "ekonomi": 80
+    },
+    "pas": {
+      "agama": 80, "pkn": 80, "b_indonesia": 80, "b_inggris": 80, "mtk_wajib": 80,
+      "sejarah": 80, "pjok": 80, "seni_rupa": 80, "b_jepang": 80, "biologi": 80,
+      "fisika": 80, "kimia": 80, "informatika": 80, "mtk_lanjut": 80, "geografi": 80,
+      "sosial": 80, "pkwu": 80, "ekonomi": 80
+    }
+  }
+}
+
+### 5. Create Siswa Validasi Gagal — nama kosong (Wajib 400, errors per field)
+POST {{baseUrl}}/siswa
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nis": "2102",
+  "nama": "",
+  "jenis_kelamin": "L",
+  "kelas": "XII-1",
+  "nilai": {
+    "rapor": {
+      "agama": 101, "pkn": 80, "b_indonesia": 80, "b_inggris": 80, "mtk_wajib": 80,
+      "sejarah": 80, "pjok": 80, "seni_rupa": 80, "b_jepang": 80, "biologi": 80,
+      "fisika": 80, "kimia": 80, "informatika": 80, "mtk_lanjut": 80, "geografi": 80,
+      "sosial": 80, "pkwu": 80, "ekonomi": 80
+    },
+    "pts": {},
+    "pas": {}
+  }
+}
+
+### 6. Detail Siswa (Wajib 200, nilai_akademik = { rapor, pts, pas } + non_akademik)
+# ⚠️ GANTI ANGKA '1' DI BAWAH DENGAN ID DARI RESPONSE NOMOR 3
+GET {{baseUrl}}/siswa/1
+Authorization: Bearer {{token}}
+
+### 7. Detail Siswa ID Ngawur (Wajib 404, 'Siswa tidak ditemukan.')
+GET {{baseUrl}}/siswa/999999
+Authorization: Bearer {{token}}
+
+### 8. Update Siswa (Wajib 200, upsert nilai + non_akademik)
+# ⚠️ GANTI ANGKA '1' DI BAWAH DENGAN ID DARI RESPONSE NOMOR 3
+PUT {{baseUrl}}/siswa/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nama": "Farhan Haddad Updated",
+  "kelas": "XII-2",
+  "nilai": {
+    "rapor": {
+      "agama": 95, "pkn": 93, "b_indonesia": 90, "b_inggris": 88, "mtk_wajib": 85,
+      "sejarah": 87, "pjok": 96, "seni_rupa": 92, "b_jepang": 90, "biologi": 83,
+      "fisika": 81, "kimia": 80, "informatika": 99, "mtk_lanjut": 78, "geografi": 86,
+      "sosial": 89, "pkwu": 91, "ekonomi": 94
+    },
+    "pts": {
+      "agama": 94, "pkn": 92, "b_indonesia": 89, "b_inggris": 87, "mtk_wajib": 84,
+      "sejarah": 86, "pjok": 95, "seni_rupa": 91, "b_jepang": 89, "biologi": 82,
+      "fisika": 80, "kimia": 79, "informatika": 98, "mtk_lanjut": 77, "geografi": 85,
+      "sosial": 88, "pkwu": 90, "ekonomi": 93
+    },
+    "pas": {
+      "agama": 96, "pkn": 94, "b_indonesia": 91, "b_inggris": 89, "mtk_wajib": 86,
+      "sejarah": 88, "pjok": 97, "seni_rupa": 93, "b_jepang": 91, "biologi": 84,
+      "fisika": 82, "kimia": 81, "informatika": 100, "mtk_lanjut": 79, "geografi": 87,
+      "sosial": 90, "pkwu": 92, "ekonomi": 95
+    }
+  },
+  "non_akademik": {
+    "ekstrakurikuler": "PRAMUKA",
+    "prestasi": "Juara 1 OSN Informatika",
+    "kemampuan": "Public Speaking",
+    "organisasi": "Karang Taruna",
+    "kursus": "Bootcamp Data Science",
+    "jurusan_1": "SI",
+    "jurusan_2": "TI"
+  }
+}
+
+### 9. Delete Siswa (Wajib 200, 'Siswa berhasil dihapus.'; 409 bila sudah di-cluster)
+# ⚠️ GANTI ANGKA '1' DI BAWAH DENGAN ID DARI RESPONSE NOMOR 3
+DELETE {{baseUrl}}/siswa/1
+Authorization: Bearer {{token}}
+
+### 10. Delete Siswa ID Ngawur (Wajib 404, 'Siswa tidak ditemukan.')
+DELETE {{baseUrl}}/siswa/999999
+Authorization: Bearer {{token}}
+
+### 11. List Siswa Search NIS (Wajib 200, hanya siswa dengan nis mengandung '2101')
+GET {{baseUrl}}/siswa?q=2101
+Authorization: Bearer {{token}}
+
+### 12. List Siswa Filter Kelas (Wajib 200, hanya kelas 'XII-1')
+GET {{baseUrl}}/siswa?kelas=XII-1
+Authorization: Bearer {{token}}
