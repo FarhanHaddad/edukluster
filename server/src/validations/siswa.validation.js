@@ -41,8 +41,10 @@ const identitasSchema = z.object({
     .trim()
     .min(1, 'Nama wajib diisi')
     .max(150, 'Nama maksimal 150 karakter'),
-  jenis_kelamin: z.enum(['L', 'P'], {
-    message: 'Jenis kelamin harus L atau P',
+  // FE dropdown mengirim teks penuh ("Laki-laki"/"Perempuan"); "L"/"P" tetap diterima.
+  // Normalisasi ke 1 karakter dilakukan di service layer (kolom DB VarChar(1)).
+  jenis_kelamin: z.enum(['L', 'P', 'Laki-laki', 'Perempuan'], {
+    message: 'Jenis kelamin harus Laki-laki atau Perempuan',
   }),
   kelas: z
     .string()

@@ -6,6 +6,13 @@ const STATUS_PERIODE = { AKTIF: 'AKTIF' };
 const SOURCE_SINGLE_INPUT = 'single_input';
 const JENIS_NILAI = ['rapor', 'pts', 'pas'];
 
+// Normalisasi jenis_kelamin dari FE (boleh teks penuh) -> kode 1 karakter untuk DB VarChar(1).
+const JK_MAP = { L: 'L', P: 'P', 'Laki-laki': 'L', 'Perempuan': 'P' };
+function normalizeJenisKelamin(value) {
+  if (value === undefined || value === null) return value;
+  return JK_MAP[value] ?? value;
+}
+
 // Field siswa yang boleh dikirim ke response — TANPA created_at/updated_at.
 const SAFE_SISWA_SELECT = {
   id: true,
@@ -237,7 +244,9 @@ async function getSiswaDetail(id, periode_id) {
 
 // POST /api/siswa — single input manual dalam SATU transaksi 6 operasi (FR-C01).
 async function createSiswa(payload) {
-  const { nis, nama, jenis_kelamin, kelas, nilai, non_akademik } = payload;
+  const { nis, nama, kelas, nilai, non_akademik } = payload;
+  // Simpan kode 1 karakter di DB ("Laki-laki" -> "L", dst). Response ikut normal.
+  const jenis_kelamin = normalizeJenisKelamin(payload.jenis_kelamin);
 
   // Periode target: body.periode_id atau fallback AKTIF (409 bila tidak ada).
   const periodeId = await resolvePeriodeId(payload.periode_id, { throwWhenMissing: true });
@@ -326,7 +335,9 @@ async function updateSiswa(id, payload) {
     throw new ApiError(404, 'Siswa tidak ditemukan.');
   }
 
-  const { nis, nama, jenis_kelamin, kelas, nilai, non_akademik } = payload;
+  const { nis, nama, kelas, nilai, non_akademik } = payload;
+  // Normalisasi ke kode 1 karakter sebelum prisma.siswa.update (DB VarChar(1)).
+  const jenis_kelamin = normalizeJenisKelamin(payload.jenis_kelamin);
 
   // Bila NIS diubah dan sudah dipakai siswa lain → 409 (cek manual sebelum simpan).
   if (nis && nis !== existing.nis) {
