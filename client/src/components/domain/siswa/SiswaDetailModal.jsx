@@ -25,7 +25,7 @@ function ReadOnlyDropdownField({ label, value }) {
       <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
         {label}
       </label>
-      <div className="relative flex h-10 w-full items-center justify-between rounded-lg border border-line bg-input px-3 text-sm text-ink cursor-default pointer-events-none select-text">
+      <div className="relative flex h-10 w-full items-center justify-between rounded-lg border border-line bg-input px-3 text-sm text-ink cursor-default select-text">
         <span className="font-medium">{displayVal}</span>
         <ChevronDown size={16} className="text-faint shrink-0" aria-hidden="true" />
       </div>
@@ -52,7 +52,7 @@ export default function SiswaDetailModal({ studentId, open, onClose }) {
   const pts = nilai.pts ?? {};
   const pas = nilai.pas ?? {};
 
-  const nonAkademik = detailData?.non_akademik ?? {};
+  const nonAkademik = detailData?.non_akademik ?? detailData?.nonAkademik ?? {};
 
   return (
     <Dialog
@@ -68,8 +68,8 @@ export default function SiswaDetailModal({ studentId, open, onClose }) {
             Detail Data Siswa: {nama}
           </h2>
           <p className="mt-1 text-sm text-muted">
-            NIS: <span className="font-mono text-ink font-medium">{nis}</span> • Kelas{' '}
-            <span className="text-ink font-medium">{kelas}</span> • Source:{' '}
+            NIS: <span className="font-mono text-ink font-medium">{nis}</span> - Kelas{' '}
+            <span className="text-ink font-medium">{kelas}</span> - Source:{' '}
             <span className="text-ink font-medium">{sourceLabel}</span>
           </p>
         </div>
@@ -157,8 +157,8 @@ export default function SiswaDetailModal({ studentId, open, onClose }) {
                 <ReadOnlyField label="ORGANISASI" value={nonAkademik.organisasi} />
                 <ReadOnlyField label="KURSUS" value={nonAkademik.kursus} />
                 <div className="hidden sm:block" />
-                <ReadOnlyField label="JURUSAN 1" value={nonAkademik.jurusan_1} />
-                <ReadOnlyField label="JURUSAN 2" value={nonAkademik.jurusan_2} />
+                <ReadOnlyField label="JURUSAN 1" value={nonAkademik.jurusan_1 ?? nonAkademik.jurusan1} />
+                <ReadOnlyField label="JURUSAN 2" value={nonAkademik.jurusan_2 ?? nonAkademik.jurusan2} />
               </div>
             </section>
           </>
