@@ -72,8 +72,8 @@ export default function SiswaPagination({
               onClick={() => onPageChange(p)}
               className={
                 isActive
-                  ? 'flex h-9 min-w-[36px] items-center justify-center rounded-lg bg-brand text-on-brand font-semibold text-sm transition-colors'
-                  : 'flex h-9 min-w-[36px] items-center justify-center rounded-lg border border-line bg-card text-ink font-medium text-sm hover:bg-line transition-colors'
+                  ? 'flex h-9 min-w-9 items-center justify-center rounded-lg bg-brand text-on-brand font-semibold text-sm transition-colors'
+                  : 'flex h-9 min-w-9 items-center justify-center rounded-lg border border-line bg-card text-ink font-medium text-sm hover:bg-line transition-colors'
               }
             >
               {p}
