@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
 
-export default function Tooltip({ children, content, side = 'top', disabled = false }) {
+export default function Tooltip({ children, content, side = 'top', disabled = false, className }) {
   const [visible, setVisible] = useState(false);
 
   if (disabled || !content) return children;
@@ -15,7 +15,7 @@ export default function Tooltip({ children, content, side = 'top', disabled = fa
 
   return (
     <div
-      className="relative inline-flex"
+      className={cn('relative inline-flex', className)}
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
       onFocus={() => setVisible(true)}

@@ -74,11 +74,12 @@ export default function SiswaTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-line text-ink">
-          {items.map((item) => {
+          {items.map((item, index) => {
             const sourceType = item.source_type || item.source;
             const isExcel = sourceType === 'excel';
             const sourceLabel = isExcel ? 'Excel' : 'Manual';
             const sourceTone = isExcel ? 'info' : 'warning';
+            const isNearBottom = index >= items.length - 2 && items.length > 2;
 
             return (
               <tr key={item.id} className="hover:bg-input/50 transition-colors">
@@ -92,17 +93,20 @@ export default function SiswaTable({
                 </td>
                 <td className="py-3.5 pr-6 text-right">
                   <div className="flex justify-end">
-                    <Menu align="right">
-                      {({ close }) => [
+                    <Menu align="right" placement={isNearBottom ? 'up' : 'down'}>
+                      {({ open, toggle, close }) => [
                         <button
                           key="trigger"
                           type="button"
+                          onClick={toggle}
+                          aria-haspopup="menu"
+                          aria-expanded={open}
                           aria-label={`Menu aksi untuk ${item.nama}`}
-                          className="flex size-8 items-center justify-center rounded-lg border border-line bg-card text-muted hover:bg-line hover:text-ink transition-colors"
+                          className="flex size-8 items-center justify-center rounded-lg border border-line bg-card text-muted hover:bg-line hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
                         >
                           <MoreVertical size={16} aria-hidden="true" />
                         </button>,
-                        <div key="panel" className="space-y-0.5">
+                        <div key="panel" className="w-36 space-y-0.5">
                           <MenuItem
                             icon={Eye}
                             onClick={() => {
@@ -113,7 +117,7 @@ export default function SiswaTable({
                             Lihat Detail
                           </MenuItem>
 
-                          <Tooltip content="Segera hadir (Tiket FE-2)" side="left">
+                          <Tooltip content="Segera hadir (Tiket FE-2)" side="left" className="w-full">
                             <button
                               type="button"
                               disabled
@@ -124,7 +128,7 @@ export default function SiswaTable({
                             </button>
                           </Tooltip>
 
-                          <div className="border-b border-line my-1" />
+                          <div className="my-1 border-b border-line" role="separator" />
 
                           <MenuItem
                             icon={Trash2}
