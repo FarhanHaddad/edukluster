@@ -20,10 +20,10 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "nis": "2101",
-  "nama": "Farhan Haddad",
-  "jenis_kelamin": "L",
-  "kelas": "XII-1",
+  "nis": "2431",
+  "nama": "Diah Utari",
+  "jenis_kelamin": "Perempuan",
+  "kelas": "XII-3",
   "nilai": {
     "rapor": {
       "agama": 90, "pkn": 88, "b_indonesia": 85, "b_inggris": 82, "mtk_wajib": 78,
