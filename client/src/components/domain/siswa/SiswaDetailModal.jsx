@@ -38,16 +38,27 @@ export default function SiswaDetailModal({ studentId, open, onClose }) {
 
   if (!open) return null;
 
-  const nama = detailData?.nama ?? '...';
-  const nis = detailData?.nis ?? '-';
-  const kelas = detailData?.kelas ?? '-';
-  const sourceType = detailData?.source_type || detailData?.source;
+  // Response structure GET /api/siswa/:id:
+  // {
+  //   siswa: { id, nis, nama, jenis_kelamin, createdAt, updatedAt },
+  //   siswa_periode: { id, siswa_id, periode_id, kelas, source_type, createdAt, periode: {...} },
+  //   nilai_akademik: { rapor: {...}, pts: {...}, pas: {...} },
+  //   non_akademik: { id, ekstrakurikuler, prestasi, kemampuan, organisasi, kursus, jurusan_1, jurusan_2 }
+  // }
+  const siswa = detailData?.siswa ?? detailData;
+  const siswaPeriode = detailData?.siswa_periode ?? detailData;
+
+  const nama = siswa?.nama ?? '...';
+  const nis = siswa?.nis ?? '-';
+  const kelas = siswaPeriode?.kelas ?? detailData?.kelas ?? '-';
+
+  const sourceType = siswaPeriode?.source_type || detailData?.source_type || detailData?.source;
   const sourceLabel = sourceType === 'excel' ? 'Excel' : 'Manual';
 
-  const jkRaw = detailData?.jenis_kelamin;
+  const jkRaw = siswa?.jenis_kelamin ?? detailData?.jenis_kelamin;
   const jkLabel = jkRaw === 'L' ? 'Laki-laki' : jkRaw === 'P' ? 'Perempuan' : (jkRaw || '-');
 
-  const nilai = detailData?.nilai ?? {};
+  const nilai = detailData?.nilai_akademik ?? detailData?.nilai ?? {};
   const rapor = nilai.rapor ?? {};
   const pts = nilai.pts ?? {};
   const pas = nilai.pas ?? {};
