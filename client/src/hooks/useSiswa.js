@@ -58,3 +58,36 @@ export function useDeleteSiswa() {
     },
   });
 }
+
+async function createSiswa(payload) {
+  const res = await api.post('/siswa', payload);
+  return res.data;
+}
+
+export function useCreateSiswa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createSiswa,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['siswa'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}
+
+async function updateSiswa({ id, payload }) {
+  const res = await api.put(`/siswa/${id}`, payload);
+  return res.data;
+}
+
+export function useUpdateSiswa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateSiswa,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['siswa'] });
+      queryClient.invalidateQueries({ queryKey: ['siswa-detail', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}

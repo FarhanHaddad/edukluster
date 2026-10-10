@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import useDashboardSummary from '../hooks/useDashboardSummary';
-import { useSiswaList, useDeleteSiswa } from '../hooks/useSiswa';
+import { useSiswaList, useDeleteSiswa, useCreateSiswa } from '../hooks/useSiswa';
 import PageHeader from '../components/domain/PageHeader';
 import PeriodChip from '../components/domain/PeriodChip';
 import Card from '../components/ui/Card';
@@ -10,6 +10,7 @@ import SiswaTable from '../components/domain/siswa/SiswaTable';
 import SiswaPagination from '../components/domain/siswa/SiswaPagination';
 import SiswaDetailModal from '../components/domain/siswa/SiswaDetailModal';
 import DeleteSiswaDialog from '../components/domain/siswa/DeleteSiswaDialog';
+import SiswaForm from '../components/domain/siswa/SiswaForm';
 import Toast from '../components/domain/siswa/Toast';
 import { cn } from '../lib/utils';
 
@@ -28,6 +29,9 @@ export default function SiswaPage() {
   const [kelas, setKelas] = useState('');
   const [source, setSource] = useState('');
 
+  // Server error on NIS for single_input form
+  const [serverNisError, setServerNisError] = useState(null);
+
   // Query list siswa
   const { data, isLoading } = useSiswaList({
     page,
@@ -45,8 +49,9 @@ export default function SiswaPage() {
   const [detailStudentId, setDetailStudentId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // Delete mutation
+  // Mutations
   const deleteMutation = useDeleteSiswa();
+  const createMutation = useCreateSiswa();
 
   // Toast state
   const [toast, setToast] = useState({ open: false, message: '', tone: 'danger' });
@@ -93,6 +98,27 @@ export default function SiswaPage() {
     }
   };
 
+  const handleCreateSubmit = async (formData) => {
+    try {
+      setServerNisError(null);
+      const payload = {
+        ...formData,
+        periode_id: activePeriode?.id,
+      };
+      await createMutation.mutateAsync(payload);
+      showToast('Siswa berhasil ditambahkan.', 'success');
+      setActiveTab('daftar');
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 409) {
+        setServerNisError('NIS sudah terdaftar.');
+      } else {
+        const msg = err.response?.data?.message || 'Gagal menyimpan data siswa.';
+        showToast(msg, 'danger');
+      }
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       {/* ROW 1: HEADER */}
@@ -122,7 +148,10 @@ export default function SiswaPage() {
 
         <button
           type="button"
-          onClick={() => setActiveTab('single_input')}
+          onClick={() => {
+            setServerNisError(null);
+            setActiveTab('single_input');
+          }}
           className={cn(
             'pb-3 pt-1 text-sm font-semibold border-b-2 transition-colors',
             activeTab === 'single_input'
@@ -178,11 +207,18 @@ export default function SiswaPage() {
               />
             )}
           </>
+        ) : activeTab === 'single_input' ? (
+          <SiswaForm
+            mode="create"
+            onSubmit={handleCreateSubmit}
+            onCancel={() => setActiveTab('daftar')}
+            isSubmitting={createMutation.isPending}
+            serverNisError={serverNisError}
+            onClearServerNisError={() => setServerNisError(null)}
+          />
         ) : (
           <div className="flex min-h-64 flex-col items-center justify-center p-12 text-center">
-            <h3 className="text-base font-semibold text-ink">
-              {activeTab === 'single_input' ? 'Single Input Siswa' : 'Import Excel Data Siswa'}
-            </h3>
+            <h3 className="text-base font-semibold text-ink">Import Excel Data Siswa</h3>
             <p className="mt-1 text-sm text-muted">Segera hadir</p>
           </div>
         )}

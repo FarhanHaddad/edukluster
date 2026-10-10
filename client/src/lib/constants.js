@@ -1,5 +1,7 @@
 export const APP_VERSION = 'v0.3.0';
 
+export const KELAS_OPTIONS = ['XII-1', 'XII-2', 'XII-3', 'XII-4'];
+
 export const MAPPEL = [
   { key: 'agama', label: 'Agama' },
   { key: 'pkn', label: 'PKN' },

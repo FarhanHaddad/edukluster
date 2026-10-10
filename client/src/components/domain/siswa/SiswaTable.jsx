@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Eye, Pencil, Trash2, Users, FileSpreadsheet } from 'lucide-react';
 import Badge from '../../ui/Badge';
 import Button from '../../ui/Button';
@@ -100,16 +101,13 @@ export default function SiswaTable({
                       <Eye size={16} aria-hidden="true" />
                     </button>
 
-                    <Tooltip content="Segera hadir (Tiket FE-2)">
-                      <button
-                        type="button"
-                        disabled
-                        aria-label={`Edit ${item.nama}`}
-                        className="flex size-8 items-center justify-center rounded-lg text-muted opacity-40 cursor-not-allowed"
-                      >
-                        <Pencil size={16} aria-hidden="true" />
-                      </button>
-                    </Tooltip>
+                    <Link
+                      to={`/siswa/${item.id}/edit`}
+                      aria-label={`Edit ${item.nama}`}
+                      className="flex size-8 items-center justify-center rounded-lg text-muted hover:bg-line hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+                    >
+                      <Pencil size={16} aria-hidden="true" />
+                    </Link>
 
                     <button
                       type="button"
