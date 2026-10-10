@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import PeriodePage from './pages/PeriodePage';
 import AdminPage from './pages/AdminPage';
 import SiswaPage from './pages/SiswaPage';
+import SiswaEditPage from './pages/SiswaEditPage';
 import PlaceholderPage from './components/domain/PlaceholderPage';
 
 // Menu shell yang belum dibangun — semua protected, render PlaceholderPage.
@@ -33,6 +34,7 @@ export default function App() {
               <Route path="/periode" element={<PeriodePage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/siswa" element={<SiswaPage />} />
+              <Route path="/siswa/:id/edit" element={<SiswaEditPage />} />
               {PLACEHOLDER_ROUTES.map(({ path, title }) => (
                 <Route key={path} path={path} element={<PlaceholderPage title={title} />} />
               ))}
