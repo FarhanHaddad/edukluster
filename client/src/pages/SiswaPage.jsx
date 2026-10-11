@@ -11,7 +11,7 @@ import SiswaPagination from '../components/domain/siswa/SiswaPagination';
 import SiswaDetailModal from '../components/domain/siswa/SiswaDetailModal';
 import DeleteSiswaDialog from '../components/domain/siswa/DeleteSiswaDialog';
 import SiswaForm from '../components/domain/siswa/SiswaForm';
-import ImportExcelWizard from '../components/domain/siswa/ImportExcelWizard';
+import ImportExcelWizard from '../components/domain/siswa/import/ImportExcelWizard';
 import Toast from '../components/domain/siswa/Toast';
 import { cn } from '../lib/utils';
 
