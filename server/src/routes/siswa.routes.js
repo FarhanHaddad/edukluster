@@ -17,6 +17,11 @@ router.get('/template-excel', excelImportController.downloadTemplate);
 // Sama: daftar sebelum '/:id'. Field upload: "file" (multipart, memoryStorage, maks 5 MB).
 router.post('/import-excel/preview', uploadExcel, excelImportController.previewImport);
 
+// POST /api/siswa/import-excel/confirm — mass insert transaksional (all-or-nothing) dari
+// cache previewId B1. Hanya baris valid+missing diinsert; baris error ditolak (rejectedRows).
+// Daftar sebelum '/:id' agar path 'import-excel' tidak terbaca sebagai id.
+router.post('/import-excel/confirm', excelImportController.confirmImport);
+
 // GET /api/siswa — FR-C01
 router.get('/', siswaController.listSiswa);
 

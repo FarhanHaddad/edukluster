@@ -1,5 +1,7 @@
+const { z } = require('zod');
 const excelTemplateService = require('../services/excelTemplate.service');
 const excelImportService = require('../services/excelImport.service');
+const excelConfirmService = require('../services/excelConfirm.service');
 const ApiError = require('../utils/ApiError');
 const { XLSX_MIME, TEMPLATE_FILENAME } = require('../utils/excelConstants');
 
@@ -29,4 +31,28 @@ async function previewImport(req, res, next) {
   }
 }
 
-module.exports = { downloadTemplate, previewImport };
+// POST /api/siswa/import-excel/confirm — mass insert transaksional dari cache preview B1.
+// Controller SKINNY: Zod body -> panggil service -> bentuk 201. Service tidak kenal req/res.
+const confirmImportSchema = z.object({
+  previewId: z.string().min(1, 'previewId wajib diisi'),
+});
+
+async function confirmImport(req, res, next) {
+  try {
+    const { previewId } = confirmImportSchema.parse(req.body);
+    const result = await excelConfirmService.confirmImport(previewId);
+    return res.status(201).json({
+      success: true,
+      message: result.message, // "Import berhasil."
+      importedCount: result.importedCount,
+      missingCount: result.missingCount,
+      rejectedCount: result.rejectedCount,
+      rejectedRows: result.rejectedRows,
+      periode: result.periode, // { id: Number, namaPeriode: string } — BigInt sudah jadi Number
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { downloadTemplate, previewImport, confirmImport };

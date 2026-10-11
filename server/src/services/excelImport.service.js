@@ -478,7 +478,10 @@ async function parseAndPreview(file) {
   const status = errors.length === 0 ? 'success' : 'validation_error';
 
   // --- Simpan cache previewId utk tiket B2 (confirm) — TIDAK ada write ke DB. ---
-  const previewId = storePreview({ previewData, summary, fileName: file.originalname, uploadedAt: new Date().toISOString() });
+  // PERLUASAN PAYLOAD CACHE (tiket B2): `errors` ikut disimpan supaya service confirm
+  // dapat membentuk rejectedRows (baris error yang DITOLAK, tidak diinsert) tanpa
+  // menyentuh kontrak response preview (field respons publik tetap sama).
+  const previewId = storePreview({ previewData, summary, errors, fileName: file.originalname, uploadedAt: new Date().toISOString() });
 
   return {
     previewId,

@@ -190,3 +190,30 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 
 << ./data-siswa.xlsx
 --boundary--
+
+### 15. Confirm Import Excel — mass insert transaksional (Wajib 201 "Import berhasil.";
+# previewId diambil dari response preview (nomor 14). Baris error -> rejectedRows, tidak diinsert.
+# Cache terhapus pasca-sukses: confirm kedua dengan previewId sama -> wajib 404.
+POST {{baseUrl}}/siswa/import-excel/confirm
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "previewId": "GANTI-DENGAN-previewId-DARI-RESPONSE-PREVIEW"
+}
+
+### 16. Confirm Import — previewId ngawur/kedaluwarsa (Wajib 404, pesan upload ulang)
+POST {{baseUrl}}/siswa/import-excel/confirm
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "previewId": "id-yang-tidak-ada-di-cache"
+}
+
+### 17. Confirm Import — body invalid tanpa previewId (Wajib 400 validasi Zod)
+POST {{baseUrl}}/siswa/import-excel/confirm
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ }

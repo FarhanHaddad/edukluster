@@ -597,3 +597,30 @@ Content-Type: application/pdf
 ### 16. Preview Import Tanpa File (Wajib 400 code INVALID_FILE, field "file" wajib ada)
 POST {{baseUrl}}/siswa/import-excel/preview
 Authorization: Bearer {{token}}
+
+### 17. Confirm Import Excel — mass insert transaksional (Wajib 201 "Import berhasil.";
+# previewId dari response preview valid. Baris error -> rejectedRows (tidak diinsert).
+# Confirm kedua dengan previewId sama -> wajib 404 (cache sudah dihapus = idempotency).
+POST {{baseUrl}}/siswa/import-excel/confirm
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "previewId": "GANTI-DENGAN-previewId-DARI-RESPONSE-PREVIEW"
+}
+
+### 18. Confirm Import — previewId ngawur/kedaluwarsa (Wajib 404, pesan upload ulang)
+POST {{baseUrl}}/siswa/import-excel/confirm
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "previewId": "id-yang-tidak-ada-di-cache"
+}
+
+### 19. Confirm Import — body invalid tanpa previewId (Wajib 400 validasi Zod)
+POST {{baseUrl}}/siswa/import-excel/confirm
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ }
