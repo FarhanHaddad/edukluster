@@ -11,6 +11,7 @@ import SiswaPagination from '../components/domain/siswa/SiswaPagination';
 import SiswaDetailModal from '../components/domain/siswa/SiswaDetailModal';
 import DeleteSiswaDialog from '../components/domain/siswa/DeleteSiswaDialog';
 import SiswaForm from '../components/domain/siswa/SiswaForm';
+import ImportExcelWizard from '../components/domain/siswa/ImportExcelWizard';
 import Toast from '../components/domain/siswa/Toast';
 import { cn } from '../lib/utils';
 
@@ -217,10 +218,10 @@ export default function SiswaPage() {
             onClearServerNisError={() => setServerNisError(null)}
           />
         ) : (
-          <div className="flex min-h-64 flex-col items-center justify-center p-12 text-center">
-            <h3 className="text-base font-semibold text-ink">Import Excel Data Siswa</h3>
-            <p className="mt-1 text-sm text-muted">Segera hadir</p>
-          </div>
+          <ImportExcelWizard
+            onSwitchToDaftarTab={() => setActiveTab('daftar')}
+            showToast={showToast}
+          />
         )}
       </Card>
 
