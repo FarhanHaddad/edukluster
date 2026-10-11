@@ -174,3 +174,19 @@ Authorization: Bearer {{token}}
 ### 12. List Siswa Filter Kelas (Wajib 200, hanya kelas 'XII-1')
 GET {{baseUrl}}/siswa?kelas=XII-1
 Authorization: Bearer {{token}}
+
+### 13. Download Template Excel (Wajib 200, attachment template-import-siswa.xlsx, 4 sheet)
+GET {{baseUrl}}/siswa/template-excel
+Authorization: Bearer {{token}}
+
+### 14. Preview Import Excel (multipart field "file"; Wajib 200 preview JSON tanpa insert DB)
+POST {{baseUrl}}/siswa/import-excel/preview
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="data-siswa.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+<< ./data-siswa.xlsx
+--boundary--

@@ -562,3 +562,38 @@ Authorization: Bearer {{token}}
 ### 12. List Siswa Filter Kelas (Wajib 200, hanya kelas 'XII-1')
 GET {{baseUrl}}/siswa?kelas=XII-1
 Authorization: Bearer {{token}}
+
+## ==================== IMPORT EXCEL (tiket B1) ====================
+
+### 13. Download Template Excel (Wajib 200, file .xlsx 4 sheet: RAPOR/PTS/PAS/NON-AKADEMIK)
+GET {{baseUrl}}/siswa/template-excel
+Authorization: Bearer {{token}}
+
+### 14. Preview Import Excel — file valid (Wajib 200 status "success", errors [])
+# Unduh dulu template via request 13, isi baris datanya, lalu upload:
+POST {{baseUrl}}/siswa/import-excel/preview
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="data-siswa.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+<< ./data-siswa.xlsx
+--boundary--
+
+### 15. Preview Import Excel — file bukan xlsx (Wajib 400 code INVALID_FILE, "File harus berformat .xlsx.")
+POST {{baseUrl}}/siswa/import-excel/preview
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="dokumen.pdf"
+Content-Type: application/pdf
+
+<< ./dokumen.pdf
+--boundary--
+
+### 16. Preview Import Tanpa File (Wajib 400 code INVALID_FILE, field "file" wajib ada)
+POST {{baseUrl}}/siswa/import-excel/preview
+Authorization: Bearer {{token}}

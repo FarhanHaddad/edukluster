@@ -22,11 +22,13 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  // ApiError: pakai statusCode bawaan.
+  // ApiError: pakai statusCode bawaan. Bila ada `code` (mis. FATAL_PARSE_ERROR,
+  // INVALID_FILE, FILE_TOO_LARGE dari tiket import Excel) ikut dipancarkan ke klien.
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
       success: false,
       message: err.message,
+      ...(err.code ? { code: err.code } : {}),
     });
   }
 
