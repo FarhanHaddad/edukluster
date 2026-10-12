@@ -194,6 +194,8 @@ export default function SiswaPage() {
             <SiswaTable
               items={items}
               isLoading={isLoading}
+              page={page}
+              limit={10}
               onViewDetail={(item) => setDetailStudentId(item.id)}
               onDelete={(item) => setDeleteTarget(item)}
               onSwitchTab={(tab) => setActiveTab(tab)}

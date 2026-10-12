@@ -5,6 +5,7 @@ import { useSiswaDetail, useUpdateSiswa } from '../hooks/useSiswa';
 import Card from '../components/ui/Card';
 import SiswaForm from '../components/domain/siswa/SiswaForm';
 import Toast from '../components/domain/siswa/Toast';
+import { getSourceBadgeProps } from '../lib/constants';
 
 export default function SiswaEditPage() {
   const { id } = useParams();
@@ -27,7 +28,7 @@ export default function SiswaEditPage() {
   const nis = siswa?.nis ?? '';
   const kelas = siswaPeriode?.kelas ?? detailData?.kelas ?? '';
   const sourceType = siswaPeriode?.source_type || detailData?.source_type || detailData?.source;
-  const sourceLabel = sourceType === 'excel' ? 'Excel' : 'Manual';
+  const sourceBadgeProps = getSourceBadgeProps(sourceType);
 
   const handleEditSubmit = async (formData) => {
     try {
@@ -98,7 +99,7 @@ export default function SiswaEditPage() {
           <p className="mt-1 text-sm text-muted">
             NIS: <span className="font-mono text-ink font-medium">{nis}</span> - Kelas{' '}
             <span className="text-ink font-medium">{kelas}</span> - Source:{' '}
-            <span className="text-ink font-medium">{sourceLabel}</span>
+            <span className="text-ink font-medium">{sourceBadgeProps.label}</span>
           </p>
         </div>
       </div>

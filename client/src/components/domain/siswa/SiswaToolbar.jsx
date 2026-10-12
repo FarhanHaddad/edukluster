@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
 import { formatAngka } from '../../../lib/format';
+import { SOURCE_TYPES } from '../../../lib/constants';
 
 export default function SiswaToolbar({
   search,
@@ -75,8 +76,8 @@ export default function SiswaToolbar({
             className="h-10 cursor-pointer appearance-none rounded-lg border border-line bg-input pl-3 pr-8 text-sm font-medium text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 transition-colors"
           >
             <option value="">Semua Source</option>
-            <option value="excel">Excel</option>
-            <option value="single_input">Manual</option>
+            <option value={SOURCE_TYPES.SINGLE_INPUT}>Single Input</option>
+            <option value={SOURCE_TYPES.EXCEL_IMPORT}>Import Excel</option>
           </select>
           <ChevronDown
             size={16}

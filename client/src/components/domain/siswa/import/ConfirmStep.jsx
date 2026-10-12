@@ -1,6 +1,7 @@
 import { AlertTriangle, LoaderCircle } from 'lucide-react';
 import Button from '../../../ui/Button';
 import Badge from '../../../ui/Badge';
+import { SOURCE_TYPES, getSourceBadgeProps } from '../../../../lib/constants';
 
 export default function ConfirmStep({
   previewData,
@@ -17,6 +18,8 @@ export default function ConfirmStep({
   const missingRows = summary.missingRows ?? 0;
   const errorRows = summary.errorRows ?? 0;
   const importableRows = summary.importableRows ?? 0;
+
+  const excelSourceBadge = getSourceBadgeProps(SOURCE_TYPES.EXCEL_IMPORT);
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto py-2">
@@ -56,7 +59,7 @@ export default function ConfirmStep({
           <div className="flex justify-between pt-2">
             <span className="text-muted">Source Data</span>
             <div className="flex items-center gap-1.5">
-              <Badge tone="brand">Excel</Badge>
+              <Badge tone={excelSourceBadge.tone}>{excelSourceBadge.label}</Badge>
               <span className="text-xs font-mono text-muted">
                 (source_type = excel_import)
               </span>

@@ -2,6 +2,32 @@ export const APP_VERSION = 'v0.3.0';
 
 export const KELAS_OPTIONS = ['XII-1', 'XII-2', 'XII-3', 'XII-4'];
 
+export const SOURCE_TYPES = {
+  SINGLE_INPUT: 'single_input',
+  EXCEL_IMPORT: 'excel_import',
+};
+
+export const SOURCE_CONFIG = {
+  [SOURCE_TYPES.SINGLE_INPUT]: {
+    label: 'Single Input',
+    tone: 'warning',
+  },
+  [SOURCE_TYPES.EXCEL_IMPORT]: {
+    label: 'Import Excel',
+    tone: 'info',
+  },
+};
+
+export function getSourceBadgeProps(code) {
+  if (code && SOURCE_CONFIG[code]) {
+    return SOURCE_CONFIG[code];
+  }
+  return {
+    label: code || '-',
+    tone: 'neutral',
+  };
+}
+
 export const MAPPEL = [
   { key: 'agama', label: 'Agama' },
   { key: 'pkn', label: 'PKN' },

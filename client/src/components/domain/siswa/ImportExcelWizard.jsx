@@ -20,7 +20,7 @@ import api from '../../../lib/api';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
 import { cn } from '../../../lib/utils';
-import { MAPPEL } from '../../../lib/constants';
+import { MAPPEL, SOURCE_TYPES, getSourceBadgeProps } from '../../../lib/constants';
 
 // Dictionary mapping for human readable labels (O3)
 const FIELD_HUMAN_LABELS = {
@@ -935,7 +935,7 @@ export default function ImportExcelWizard({ onSwitchToDaftarTab, showToast }) {
                 <div className="flex justify-between pt-2">
                   <span className="text-muted">Source Data</span>
                   <div className="flex items-center gap-1.5">
-                    <Badge tone="brand">Excel</Badge>
+                    <Badge tone={getSourceBadgeProps(SOURCE_TYPES.EXCEL_IMPORT).tone}>{getSourceBadgeProps(SOURCE_TYPES.EXCEL_IMPORT).label}</Badge>
                     <span className="text-xs font-mono text-muted">
                       (source_type = excel_import)
                     </span>
