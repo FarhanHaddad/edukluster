@@ -28,32 +28,33 @@ export default function PreviewTable({
 
   return (
     <div className="relative overflow-x-auto border border-line rounded-xl bg-card shadow-inner">
-      <table className="w-full text-left text-xs border-collapse min-w-max">
-        <thead className="border-b border-line bg-page text-muted font-semibold sticky top-0 z-20">
+      <table className="w-full text-left text-xs border-separate border-spacing-0 min-w-max">
+        <thead className="bg-page text-muted font-semibold">
           <tr>
-            {/* Sticky Left Headers */}
-            <th className="sticky left-0 z-20 bg-page px-3 py-3 w-14 text-center border-r border-line shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+            {/* Sticky Left Header: NO */}
+            <th className="sticky top-0 left-0 z-30 bg-page px-3 py-3 w-14 text-center border-b border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)]">
               NO
-            </th>
-            <th className="sticky left-14 z-20 bg-page px-4 py-3 w-28 border-r border-line shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-              NIS
-            </th>
-            <th className="sticky left-42 z-20 bg-page px-4 py-3 min-w-44 border-r border-line shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-              NAMA SISWA
-            </th>
-            <th className="sticky left-86 z-20 bg-page px-3 py-3 w-20 text-center border-r border-line shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-              KELAS
-            </th>
-            <th className="sticky left-106 z-20 bg-page px-3 py-3 w-28 text-center border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)]">
-              JENIS KELAMIN
             </th>
 
             {/* Scrollable Middle Headers */}
+            <th className="sticky top-0 z-20 bg-page px-4 py-3 min-w-28 border-b border-r border-line/50">
+              NIS
+            </th>
+            <th className="sticky top-0 z-20 bg-page px-4 py-3 min-w-44 max-w-52 border-b border-r border-line/50">
+              NAMA SISWA
+            </th>
+            <th className="sticky top-0 z-20 bg-page px-3 py-3 min-w-20 text-center border-b border-r border-line/50">
+              KELAS
+            </th>
+            <th className="sticky top-0 z-20 bg-page px-3 py-3 min-w-28 text-center border-b border-r border-line/50">
+              JENIS KELAMIN
+            </th>
+
             {cols.map((col) => (
               <th
                 key={col.key}
                 className={cn(
-                  'px-3 py-3 whitespace-nowrap font-mono text-xs border-r border-line/50',
+                  'sticky top-0 z-20 bg-page px-3 py-3 whitespace-nowrap font-mono text-xs border-b border-r border-line/50',
                   isNonAkademik ? 'text-left min-w-36 max-w-48' : 'text-right min-w-24'
                 )}
               >
@@ -61,11 +62,11 @@ export default function PreviewTable({
               </th>
             ))}
 
-            {/* Sticky Right Headers */}
-            <th className="sticky right-28 z-20 bg-page px-3 py-3 w-28 text-center border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.15)]">
+            {/* Sticky Right Headers: STATUS & KETERANGAN */}
+            <th className="sticky top-0 right-44 z-30 bg-page px-3 py-3 w-32 min-w-32 text-center border-b border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.15)]">
               STATUS
             </th>
-            <th className="sticky right-0 z-20 bg-page px-4 py-3 min-w-36 border-l border-line shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+            <th className="sticky top-0 right-0 z-30 bg-page px-4 py-3 w-44 min-w-44 border-b border-l border-line/50">
               KETERANGAN
             </th>
           </tr>
@@ -80,67 +81,54 @@ export default function PreviewTable({
               const isErrorRow = rowStatus === 'Error';
 
               const jk = row.jenis_kelamin;
-              const jkLabel = jk === 'L' ? 'Laki-laki' : jk === 'P' ? 'Perempuan' : '-';
+              const jkLabel =
+                jk === 'L' || jk === 'Laki-laki'
+                  ? 'Laki-laki'
+                  : jk === 'P' || jk === 'Perempuan'
+                  ? 'Perempuan'
+                  : '-';
 
               const values = row.values || {};
 
-              const rowBgClass = isErrorRow
-                ? 'bg-danger-tint/20'
+              // Opaque background style for sticky cells & rows (prevents bleed-through)
+              const rowBgStyle = isErrorRow
+                ? { backgroundColor: 'color-mix(in srgb, var(--color-danger) 10%, var(--color-card))' }
                 : isMissingRow
-                ? 'bg-warning-tint/20'
-                : 'bg-card';
+                ? { backgroundColor: 'color-mix(in srgb, var(--color-warning) 10%, var(--color-card))' }
+                : { backgroundColor: 'var(--color-card)' };
 
               return (
-                <tr key={idx} className={cn('transition-colors', rowBgClass)}>
-                  {/* Sticky Left Cells */}
+                <tr key={idx} style={rowBgStyle} className="transition-colors">
+                  {/* Sticky Left Cell: NO */}
                   <td
-                    className={cn(
-                      'sticky left-0 z-10 px-3 py-2.5 font-mono text-center text-muted border-r border-line shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                      rowBgClass
-                    )}
+                    style={rowBgStyle}
+                    className="sticky left-0 z-10 px-3 py-2.5 font-mono text-center text-muted border-b border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)]"
                   >
                     {rowNum}
                   </td>
-                  <td
-                    className={cn(
-                      'sticky left-14 z-10 px-4 py-2.5 font-mono font-semibold border-r border-line shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                      rowBgClass
-                    )}
-                  >
+
+                  {/* Scrollable Middle Cells */}
+                  <td className="px-4 py-2.5 font-mono font-semibold border-b border-r border-line/50">
                     {row.nis || '-'}
                   </td>
                   <td
-                    className={cn(
-                      'sticky left-42 z-10 px-4 py-2.5 font-medium truncate max-w-52 border-r border-line shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                      rowBgClass
-                    )}
+                    className="px-4 py-2.5 font-medium truncate max-w-52 border-b border-r border-line/50"
                     title={row.nama || ''}
                   >
                     {row.nama || '-'}
                   </td>
-                  <td
-                    className={cn(
-                      'sticky left-86 z-10 px-3 py-2.5 font-mono text-center border-r border-line shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                      rowBgClass
-                    )}
-                  >
+                  <td className="px-3 py-2.5 font-mono text-center border-b border-r border-line/50">
                     {row.kelas || '-'}
                   </td>
-                  <td
-                    className={cn(
-                      'sticky left-106 z-10 px-3 py-2.5 text-center text-muted border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)]',
-                      rowBgClass
-                    )}
-                  >
+                  <td className="px-3 py-2.5 text-center text-muted border-b border-r border-line/50">
                     {jkLabel}
                   </td>
 
-                  {/* Middle Cells */}
+                  {/* Middle Values Cells */}
                   {cols.map((col) => {
                     const rawVal = values[col.key];
                     const isCellNull = rawVal === null || rawVal === undefined || rawVal === '';
 
-                    // Check if cell is caused by error
                     const isCellError = activeErrors.some(
                       (err) => err.row === originalRowNumber && err.field === col.key
                     );
@@ -158,7 +146,7 @@ export default function PreviewTable({
                         <td
                           key={col.key}
                           className={cn(
-                            'px-3 py-2.5 text-xs truncate max-w-48 border-r border-line/40',
+                            'px-3 py-2.5 text-xs truncate max-w-48 border-b border-r border-line/40',
                             cellStyle
                           )}
                           title={displayVal}
@@ -173,7 +161,7 @@ export default function PreviewTable({
                       <td
                         key={col.key}
                         className={cn(
-                          'px-3 py-2.5 text-xs font-mono text-right border-r border-line/40',
+                          'px-3 py-2.5 text-xs font-mono text-right border-b border-r border-line/40',
                           cellStyle
                         )}
                       >
@@ -182,20 +170,16 @@ export default function PreviewTable({
                     );
                   })}
 
-                  {/* Sticky Right Cells */}
+                  {/* Sticky Right Cells: STATUS & KETERANGAN */}
                   <td
-                    className={cn(
-                      'sticky right-28 z-10 px-3 py-2.5 text-center border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.15)]',
-                      rowBgClass
-                    )}
+                    style={rowBgStyle}
+                    className="sticky right-44 z-10 px-3 py-2.5 w-32 min-w-32 text-center border-b border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.15)]"
                   >
                     <ImportStatusBadge status={rowStatus} />
                   </td>
                   <td
-                    className={cn(
-                      'sticky right-0 z-10 px-4 py-2.5 text-muted border-l border-line shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                      rowBgClass
-                    )}
+                    style={rowBgStyle}
+                    className="sticky right-0 z-10 px-4 py-2.5 w-44 min-w-44 text-muted border-b border-l border-line/50"
                   >
                     {row.keterangan || '-'}
                   </td>
@@ -205,8 +189,8 @@ export default function PreviewTable({
           ) : (
             <tr>
               <td
-                colSpan={5 + numCols + 2}
-                className="px-4 py-8 text-center text-muted"
+                colSpan={1 + 4 + numCols + 2}
+                className="px-4 py-8 text-center text-muted bg-card"
               >
                 Tidak ada data baris pada sheet ini.
               </td>
