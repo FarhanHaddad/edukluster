@@ -1,7 +1,8 @@
 import { FileSpreadsheet, AlertCircle, Info, ChevronLeft, ChevronRight } from 'lucide-react';
-import Button from '../../../ui/Button';
 import Badge from '../../../ui/Badge';
+import Button from '../../../ui/Button';
 import ImportStatusBadge from './ImportStatusBadge';
+import PreviewTable from './PreviewTable';
 import { cn } from '../../../../lib/utils';
 import { formatFileSize } from './helpers';
 
@@ -32,6 +33,14 @@ export default function PreviewStep({
   const pageSize = 10;
   const totalPages = Math.ceil(totalSheetRows / pageSize) || 1;
   const paginatedRows = activeRows.slice((previewPage - 1) * pageSize, previewPage * pageSize);
+
+  // Contract check: Verify values & jenis_kelamin fields exist on rows
+  if (activeRows.length > 0) {
+    const sampleRow = activeRows[0];
+    if (!('values' in sampleRow) || !('jenis_kelamin' in sampleRow)) {
+      console.error('BE Response Contract Error: missing `values` or `jenis_kelamin` field on rows', sampleRow);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -109,18 +118,21 @@ export default function PreviewStep({
                 </span>
               </p>
               <div className="pl-5 space-y-1">
-                {activeErrors.slice(0, 3).map((err, idx) => (
-                  <p key={idx}>
-                    Baris <span className="font-mono font-semibold">{err.row}</span>
-                    {err.nis ? (
-                      <>
-                        {' '}
-                        — NIS <span className="font-mono font-semibold">{err.nis}</span>
-                      </>
-                    ) : null}
-                    : {err.message}
-                  </p>
-                ))}
+                {activeErrors.slice(0, 3).map((err, idx) => {
+                  const no = err.row ? err.row - 1 : '-';
+                  return (
+                    <p key={idx}>
+                      No <span className="font-mono font-semibold">{no}</span>
+                      {err.nis ? (
+                        <>
+                          {' '}
+                          - NIS <span className="font-mono font-semibold">{err.nis}</span>
+                        </>
+                      ) : null}
+                      : {err.message}
+                    </p>
+                  );
+                })}
                 {activeErrors.length > 3 && (
                   <p className="italic font-medium text-muted">
                     +{activeErrors.length - 3} error lainnya
@@ -142,107 +154,57 @@ export default function PreviewStep({
         </div>
       )}
 
-      {/* Table Preview Rows */}
-      <div className="border border-line rounded-xl overflow-hidden bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-line bg-page text-muted font-semibold">
-              <tr>
-                <th className="px-4 py-3">BARIS</th>
-                <th className="px-4 py-3">NIS</th>
-                <th className="px-4 py-3">NAMA SISWA</th>
-                <th className="px-4 py-3">KELAS</th>
-                <th className="px-4 py-3">STATUS</th>
-                <th className="px-4 py-3">KETERANGAN</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line text-ink">
-              {paginatedRows.length > 0 ? (
-                paginatedRows.map((row, idx) => {
-                  const rowStatus = row.status || 'Valid';
-                  const isMissing = rowStatus === 'Missing';
-                  const isError = rowStatus === 'Error';
+      {/* Table Preview Rows with Sticky Columns */}
+      <PreviewTable
+        activeSheetTab={activeSheetTab}
+        paginatedRows={paginatedRows}
+        activeErrors={activeErrors}
+        previewPage={previewPage}
+        pageSize={pageSize}
+      />
 
-                  return (
-                    <tr
-                      key={idx}
-                      className={cn(
-                        'transition-colors',
-                        isMissing && 'bg-warning-tint/20',
-                        isError && 'bg-danger-tint/20'
-                      )}
-                    >
-                      <td className="px-4 py-2.5 font-mono text-muted">
-                        {row.row ?? idx + 1}
-                      </td>
-                      <td className="px-4 py-2.5 font-mono font-semibold">
-                        {row.nis || '-'}
-                      </td>
-                      <td className="px-4 py-2.5 font-medium">{row.nama || '-'}</td>
-                      <td className="px-4 py-2.5 font-mono">{row.kelas || '-'}</td>
-                      <td className="px-4 py-2.5">
-                        <ImportStatusBadge status={rowStatus} />
-                      </td>
-                      <td className="px-4 py-2.5 text-muted">
-                        {row.keterangan || '-'}
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
-                    Tidak ada data baris pada sheet ini.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Client-side Pagination */}
-        {totalSheetRows > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-line bg-page/50 text-xs text-muted">
-            <div>
-              Menampilkan{' '}
-              <span className="font-mono font-semibold text-ink">
-                {(previewPage - 1) * pageSize + 1}
-              </span>
-              -
-              <span className="font-mono font-semibold text-ink">
-                {Math.min(previewPage * pageSize, totalSheetRows)}
-              </span>{' '}
-              dari <span className="font-mono font-semibold text-ink">{totalSheetRows}</span>{' '}
-              baris
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="md"
-                className="h-8 px-2 text-xs"
-                disabled={previewPage === 1}
-                onClick={() => onPageChange(Math.max(1, previewPage - 1))}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-                <span>Sebelumnya</span>
-              </Button>
-              <span className="font-mono text-ink">
-                {previewPage} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="md"
-                className="h-8 px-2 text-xs"
-                disabled={previewPage >= totalPages}
-                onClick={() => onPageChange(Math.min(totalPages, previewPage + 1))}
-              >
-                <span>Selanjutnya</span>
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+      {/* Client-side Pagination */}
+      {totalSheetRows > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 border border-line rounded-xl bg-card text-xs text-muted">
+          <div>
+            Menampilkan{' '}
+            <span className="font-mono font-semibold text-ink">
+              {(previewPage - 1) * pageSize + 1}
+            </span>
+            -
+            <span className="font-mono font-semibold text-ink">
+              {Math.min(previewPage * pageSize, totalSheetRows)}
+            </span>{' '}
+            dari <span className="font-mono font-semibold text-ink">{totalSheetRows}</span>{' '}
+            baris
           </div>
-        )}
-      </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="md"
+              className="h-8 px-2 text-xs"
+              disabled={previewPage === 1}
+              onClick={() => onPageChange(Math.max(1, previewPage - 1))}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span>Sebelumnya</span>
+            </Button>
+            <span className="font-mono text-ink">
+              {previewPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="md"
+              className="h-8 px-2 text-xs"
+              disabled={previewPage >= totalPages}
+              onClick={() => onPageChange(Math.min(totalPages, previewPage + 1))}
+            >
+              <span>Selanjutnya</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-line pt-4">
