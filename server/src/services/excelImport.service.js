@@ -425,22 +425,95 @@ async function parseAndPreview(file) {
   };
 
   // --- sheets[] utk tabel UI per tab (nama & kelas di-join dari RAPOR). ---
+  // PERLUASAN PAYLOAD PREVIEW (tiket BE-IMP-3, Opsi A): tiap item rows[] dapat 2 field BARU —
+  //   jenis_kelamin: "L"|"P" hasil normalizeJenisKelamin (util shared hotfix JK), null bila sel kosong/invalid.
+  //   values: object isi sel per sheet, supaya FE bisa merender nilai langsung dari rows TANPA join previewData.
+  // Semantik values per status baris (kontrak presisi):
+  //   - Sheet akademik (RAPOR/PTS/PAS), status valid|missing -> 18 key mapel PASCA-normalisasi (number|null;
+  //     sel kosong/invalid => null — sama dgn previewData).
+  //   - Sheet akademik, status error -> RAW parse (kebutuhan forensik: admin melihat sel penyebab error, mis. 150).
+  //   - Sheet NON-AKADEMIK -> 7 key string; status valid|missing memakai default C4 pasca-normalisasi;
+  //     status error -> RAW trim (kosong => '').
+  // Field lama (row, nis, nama, kelas, status, keterangan) TIDAK berubah; summary/sheets[].status/
+  // sheets[].errors/previewData/errors/previewId juga TIDAK berubah.
+  const rawNilaiCell = (cells, header) => {
+    const c = cells[normalizeLabel(header)];
+    if (c === null || c === undefined || c === '') return null;
+    if (typeof c === 'number') return Number.isFinite(c) ? c : null;
+    return cellStr(c); // teks non-numerik ikut tampil mentah (forensik baris error)
+  };
+
+  // Sumber nilai TER-NORMALISASI per sheet dari entry hasil pass validasi (no-duplication logika).
+  const normalizedForSheet = (sheetName, entry) => {
+    if (!entry) return null;
+    if (sheetName === SHEET_RAPOR) return entry.nilai.rapor ?? null;
+    if (sheetName === SHEET_PTS) return entry.nilai.pts ?? null;
+    if (sheetName === SHEET_PAS) return entry.nilai.pas ?? null;
+    if (sheetName === SHEET_NON_AKADEMIK) return entry.nonAkademik ?? null;
+    return null;
+  };
+
+  // Bangun `values` per baris. Kontrak semantik (tiket BE-IMP-3):
+  // - Baris dgn error LOKAL di sheet ini (validasi gagal pada sel sheet ini: numerik/rentang/kosong)
+  //   -> nilai RAW hasil parse (forensik: admin melihat sel penyebab error, mis. 150).
+  // - Status valid/missing (termasuk baris yg kena error GLOBAL seperti NIS dup / tidak ditemukan
+  //   di sheet lain — selnya sendiri tetap lolos validasi) -> nilai PASCA-normalisasi:
+  //   akademik missing = null; non-akademik kosong = string default D4.
+  const buildValuesObject = (sheetName, hasLocalError, cells, entry) => {
+    const values = {};
+    const normalized = normalizedForSheet(sheetName, entry);
+    if (sheetName === SHEET_NON_AKADEMIK) {
+      for (const [header, field] of Object.entries(NON_AKADEMIK_FIELD_MAP)) {
+        if (hasLocalError) {
+          // Forensik: tampilkan RAW hasil parse (bukan default C4) pada baris error lokal.
+          values[field] = cellStr(cells[normalizeLabel(header)]);
+        } else {
+          // Valid/missing: identik dgn normalisasi pass 3 (default C4 saat sel kosong) — no-duplication.
+          values[field] = normalized?.[field] ?? NON_AKADEMIK_DEFAULTS[field];
+        }
+      }
+      return values;
+    }
+    // Sheet akademik: kunci = dbKey mapel (agama..ekonomi), nilai number|null.
+    for (const { dbKey, header } of MATA_PELAJARAN_COLUMNS) {
+      if (hasLocalError) {
+        values[dbKey] = rawNilaiCell(cells, header); // RAW utk keperluan forensik
+      } else {
+        values[dbKey] = normalized?.[dbKey] ?? null; // PASCA-normalisasi (missing = null)
+      }
+    }
+    return values;
+  };
+
   const buildSheetBlock = (sheetName, rowsIter, nisOf) => {
     const sheetErrors = errors.filter((e) => e.sheet === sheetName);
-    const rows = rowsIter.map(({ __row }) => {
+    // Kumpulkan NIS yang punya error LOKAL di sheet ini. Pengecualian: pesan "NIS tidak ditemukan
+    // di sheet <X>" diregistrasikan pd sheet X utk baris yang absen (tak ada cells utk row tsb) —
+    // bukan indikator kegagalan validasi sel, jadi tidak memicu mode RAW.
+    const notFoundPrefix = 'NIS tidak ditemukan di sheet ';
+    const localErrorNis = new Set(
+      sheetErrors.filter((e) => !(e.field === HEADER_NIS && typeof e.message === 'string' && e.message.startsWith(notFoundPrefix))).map((e) => String(e.nis ?? ''))
+    );
+    const rows = rowsIter.map(({ __row, cells }) => {
       const nis = nisOf(__row);
       const entry = nis ? entries.get(nis) : null;
       // nis pada error global boleh null (misal NIS kosong) — pakai String utk perbandingan.
       const rowErrs = sheetErrors.filter((e) => String(e.nis ?? '') === String(nis ?? ''));
       let keterangan = '';
       if (rowErrs.length) keterangan = rowErrs.map((e) => e.message).join(' ');
+      const status = entry ? worstStatusLocal(sheetName, entry) : 'error';
       return {
         row: __row,
         nis: nis ?? '',
         nama: entry?.identitas?.nama ?? '',
         kelas: entry?.identitas?.kelas ?? '',
-        status: entry ? worstStatusLocal(sheetName, entry) : 'error',
+        status,
         keterangan,
+        // ===== Field baru (perluasan tiket BE-IMP-3) =====
+        // jenis_kelamin: hasil normalizeJenisKelamin (util shared hotfix JK) dari SEL sheet ini;
+        // null bila kolom tak ada (PTS/PAS/NON-AKADEMIK) maupun sel kosong/invalid.
+        jenis_kelamin: normalizeJenisKelamin(cellStr(cells[normalizeLabel(HEADER_JENIS_KELAMIN)])),
+        values: buildValuesObject(sheetName, localErrorNis.has(String(nis ?? '')), cells, entry),
       };
     });
     return {
