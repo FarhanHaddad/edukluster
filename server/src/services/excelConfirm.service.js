@@ -1,7 +1,7 @@
 const prisma = require('../lib/prisma');
 const ApiError = require('../utils/ApiError');
 const { previewCache } = require('./excelImport.service');
-const { MATA_PELAJARAN_COLUMNS } = require('../utils/excelConstants');
+const { MATA_PELAJARAN_COLUMNS, normalizeJenisKelamin } = require('../utils/excelConstants');
 
 // ===== Tiket B2: Confirm & Mass Insert transaksional (all-or-nothing).
 // Service TIDAK kenal req/res — controller yang membentuk response 201.
@@ -10,14 +10,19 @@ const STATUS_PERIODE_AKTIF = 'AKTIF';
 const SOURCE_EXCEL_IMPORT = 'excel_import';
 const JENIS_NILAI = ['rapor', 'pts', 'pas']; // VarChar(10), lowercase persis.
 
-// Normalisasi jenis_kelamin -> kode 1 karakter (kolom DB VarChar(1)).
-// Preview B1 sudah menyimpan 'L'/'P' uppercase, tapi peta label panjang ikut dijaga.
-const JK_MAP = { L: 'L', P: 'P', 'Laki-laki': 'L', 'Perempuan': 'P' };
-function normalizeJenisKelamin(value) {
-  if (value === undefined || value === null) return null;
-  const s = String(value).trim();
-  if (s === '') return null;
-  return JK_MAP[s] ?? s.toUpperCase() ?? null;
+// Normalisasi jenis_kelamin memakai util SHARED normalizeJenisKelamin dari utils/excelConstants
+// (tiket BE-IMP-FIX-1 — satu-satunya sumber kebenaran; TIDAK ada duplikasi logika di service).
+// Defensive: jangan andalkan preview saja — DB siswa.jenis_kelamin VarChar(1) wajib kode 'L'/'P'.
+// Bila null di tahap confirm -> ApiError 400 sesuai pola existing, JANGAN insert nilai mentah.
+function assertJenisKelamin(value, nis) {
+  const jk = normalizeJenisKelamin(value);
+  if (jk === null) {
+    throw new ApiError(
+      400,
+      `Jenis kelamin tidak valid untuk NIS ${nis} (wajib L/P atau Laki-laki/Perempuan). Import dibatalkan, tidak ada data yang masuk.`
+    );
+  }
+  return jk;
 }
 
 // Hitung jumlah baris nilai_akademik yang akan dibuat untuk satu item preview.
@@ -152,7 +157,7 @@ async function confirmImport(previewId) {
             data: {
               nis,
               nama: item.nama || null,
-              jenis_kelamin: normalizeJenisKelamin(item.jenis_kelamin),
+              jenis_kelamin: assertJenisKelamin(item.jenis_kelamin, nis),
               created_at: now,
               updated_at: now,
             },

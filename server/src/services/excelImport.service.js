@@ -21,7 +21,7 @@ const {
   NON_AKADEMIK_FIELD_MAP,
   NON_AKADEMIK_DEFAULTS,
   VALID_KELAS,
-  VALID_JENIS_KELAMIN,
+  normalizeJenisKelamin,
   PREVIEW_TTL_MS,
 } = require('../utils/excelConstants');
 
@@ -236,9 +236,11 @@ async function parseAndPreview(file) {
     // Identitas (hanya ada di RAPOR).
     const nama = cellStr(cells[normalizeLabel(HEADER_NAMA)]);
     const kelas = cellStr(cells[normalizeLabel(HEADER_KELAS)]);
+    // JK: normalisasi lewat util shared normalizeJenisKelamin (tiket BE-IMP-FIX-1) —
+    // terima kode 'L'/'P' maupun label 'Laki-laki'/'Perempuan' (case-insensitive).
+    // previewData menyimpan hasil TER-NORMALISASI ('L'/'P'), bukan raw label, supaya confirm & insert konsisten.
     const jkRaw = cellStr(cells[normalizeLabel(HEADER_JENIS_KELAMIN)]);
-    const jk = jkRaw.toUpperCase();
-    entry.identitas = { nama, kelas, jenis_kelamin: jk };
+    const jk = normalizeJenisKelamin(jkRaw);
 
     let rowStatus = 'valid';
     if (nama === '') {
@@ -249,10 +251,14 @@ async function parseAndPreview(file) {
       addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_KELAS, nis, message: 'Kelas tidak valid (wajib XII-1 sampai XII-4).' });
       rowStatus = 'error';
     }
-    if (!VALID_JENIS_KELAMIN.includes(jk)) {
-      addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_JENIS_KELAMIN, nis, message: 'Jenis kelamin tidak valid (wajib L/P).' });
+    if (jkRaw === '') {
+      addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_JENIS_KELAMIN, nis, message: 'Jenis kelamin kosong.' });
+      rowStatus = 'error';
+    } else if (jk === null) {
+      addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_JENIS_KELAMIN, nis, message: 'Jenis kelamin tidak valid (wajib L/P atau Laki-laki/Perempuan).' });
       rowStatus = 'error';
     }
+    entry.identitas = { nama, kelas, jenis_kelamin: jk ?? jkRaw };
 
     // 18 nilai mapel RAPOR.
     const mapelObj = {};

@@ -92,6 +92,25 @@ const NON_AKADEMIK_DEFAULTS = {
 const VALID_KELAS = ['XII-1', 'XII-2', 'XII-3', 'XII-4'];
 const VALID_JENIS_KELAMIN = ['L', 'P'];
 
+// ===== Normalisasi Jenis Kelamin — SATU-SATUNYA sumber kebenaran utk SELURUH alur import Excel
+// (tiket BE-IMP-FIX-1). Dipakai excelImport.service (validasi preview) & excelConfirm.service (mapping insert).
+// DILARANG duplikasi logika ini di service. Kolom DB siswa.jenis_kelamin VarChar(1): selalu simpan kode 'L'/'P'.
+// Accept-set (trim + case-insensitive, spasi internal dirapikan; pakai normalizeLabel di atas):
+//   'l' | 'laki-laki' | 'laki laki' -> 'L' ;  'p' | 'perempuan' -> 'P'.
+// Di luar accept-set -> null (caller yang memutuskan pesan error). Alias lain ('Pria'/'Wanita') = backlog, JANGAN tambah.
+const JK_NORMALIZE_MAP = {
+  l: 'L',
+  'laki-laki': 'L',
+  'laki laki': 'L',
+  p: 'P',
+  perempuan: 'P',
+};
+function normalizeJenisKelamin(value) {
+  const key = normalizeLabel(value); // trim + lower + rapikan spasi internal
+  if (key === '') return null; // kosong/whitespace-only dianggap tidak ada nilai
+  return JK_NORMALIZE_MAP[key] ?? null;
+}
+
 // ===== Kontrak file & response.
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const TEMPLATE_FILENAME = 'template-import-siswa.xlsx';
@@ -119,6 +138,8 @@ module.exports = {
   NON_AKADEMIK_DEFAULTS,
   VALID_KELAS,
   VALID_JENIS_KELAMIN,
+  JK_NORMALIZE_MAP,
+  normalizeJenisKelamin,
   XLSX_MIME,
   TEMPLATE_FILENAME,
   MAX_FILE_SIZE_BYTES,
