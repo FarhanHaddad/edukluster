@@ -425,8 +425,9 @@ async function parseAndPreview(file) {
   };
 
   // --- sheets[] utk tabel UI per tab (nama & kelas di-join dari RAPOR). ---
-  // PERLUASAN PAYLOAD PREVIEW (tiket BE-IMP-3, Opsi A): tiap item rows[] dapat 2 field BARU —
-  //   jenis_kelamin: "L"|"P" hasil normalizeJenisKelamin (util shared hotfix JK), null bila sel kosong/invalid.
+  // PERLUASAN PAYLOAD PREVIEW (tiket BE-IMP-3, Opsi A; hotfix BE-IMP-3b): tiap item rows[] dapat 2 field BARU —
+  //   jenis_kelamin: "L"|"P" hasil normalizeJenisKelamin via JOIN identitas RAPOR by NIS (sumber sama dgn nama/kelas),
+  //     terisi di SEMUA sheet; null hanya bila identitas RAPOR baris tsb kosong/invalid (kasus error).
   //   values: object isi sel per sheet, supaya FE bisa merender nilai langsung dari rows TANPA join previewData.
   // Semantik values per status baris (kontrak presisi):
   //   - Sheet akademik (RAPOR/PTS/PAS), status valid|missing -> 18 key mapel PASCA-normalisasi (number|null;
@@ -509,10 +510,13 @@ async function parseAndPreview(file) {
         kelas: entry?.identitas?.kelas ?? '',
         status,
         keterangan,
-        // ===== Field baru (perluasan tiket BE-IMP-3) =====
-        // jenis_kelamin: hasil normalizeJenisKelamin (util shared hotfix JK) dari SEL sheet ini;
-        // null bila kolom tak ada (PTS/PAS/NON-AKADEMIK) maupun sel kosong/invalid.
-        jenis_kelamin: normalizeJenisKelamin(cellStr(cells[normalizeLabel(HEADER_JENIS_KELAMIN)])),
+        // ===== Field baru (perluasan tiket BE-IMP-3, hotfix BE-IMP-3b) =====
+        // jenis_kelamin: HASIL JOIN identitas RAPOR by NIS — mekanisme yang SAMA persis dengan
+        // join nama & kelas di atas (entry?.identitas?.*). Bukan baca kolom sheet sendiri,
+        // karena hanya sheet RAPOR yang punya kolom JK; sheet lain akan selalu null (bug lama).
+        // Nilai = hasil normalizeJenisKelamin ('L'/'P') yang tersimpan di entry.identitas saat pass 1;
+        // null hanya bila identitas RAPOR baris tsb memang kosong/invalid (kasus error), atau NIS tak terdaftar.
+        jenis_kelamin: entry?.identitas?.jenis_kelamin ?? null,
         values: buildValuesObject(sheetName, localErrorNis.has(String(nis ?? '')), cells, entry),
       };
     });
