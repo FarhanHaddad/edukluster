@@ -210,7 +210,7 @@ export default function ImportExcelWizard({ onSwitchToDaftarTab, showToast }) {
   };
 
   return (
-    <div className="flex flex-col min-h-[500px]">
+    <div className="flex flex-col min-h-125">
       {/* STEPPER HEADER */}
       <ImportStepper wizardState={wizardState} />
 
