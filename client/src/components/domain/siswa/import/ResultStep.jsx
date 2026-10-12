@@ -52,34 +52,37 @@ export default function ResultStep({
             <table className="w-full text-left text-xs">
               <thead className="border-b border-line bg-page text-muted font-semibold">
                 <tr>
-                  <th className="px-4 py-2.5">BARIS</th>
+                  <th className="px-4 py-2.5">NO</th>
                   <th className="px-4 py-2.5">NIS</th>
                   <th className="px-4 py-2.5">NAMA SISWA</th>
                   <th className="px-4 py-2.5">ALASAN GAGAL</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line text-ink">
-                {resultData.rejectedRows.slice(0, 4).map((row, idx) => (
-                  <tr key={idx}>
-                    <td className="px-4 py-2 font-mono text-muted">
-                      {row.row ?? '-'}
-                    </td>
-                    <td className="px-4 py-2 font-mono font-semibold">
-                      {row.nis || '-'}
-                    </td>
-                    <td className="px-4 py-2 font-medium">
-                      {row.nama ? (
-                        row.nama
-                      ) : (
-                        <span className="italic text-faint">[Kosong]</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-danger-text flex items-center gap-1.5">
-                      <X className="h-3.5 w-3.5 shrink-0" />
-                      <span>{row.message}</span>
-                    </td>
-                  </tr>
-                ))}
+                {resultData.rejectedRows.slice(0, 4).map((row, idx) => {
+                  const no = row.row ? row.row - 1 : idx + 1;
+                  return (
+                    <tr key={idx}>
+                      <td className="px-4 py-2 font-mono text-muted">
+                        {no}
+                      </td>
+                      <td className="px-4 py-2 font-mono font-semibold">
+                        {row.nis || '-'}
+                      </td>
+                      <td className="px-4 py-2 font-medium">
+                        {row.nama ? (
+                          row.nama
+                        ) : (
+                          <span className="italic text-faint">[Kosong]</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-danger-text flex items-center gap-1.5">
+                        <X className="h-3.5 w-3.5 shrink-0" />
+                        <span>{row.message}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {resultData.rejectedRows.length > 4 && (
