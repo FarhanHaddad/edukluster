@@ -3,6 +3,7 @@ import { Eye, Pencil, Trash2, Users, FileSpreadsheet } from 'lucide-react';
 import Badge from '../../ui/Badge';
 import Button from '../../ui/Button';
 import Tooltip from '../../ui/Tooltip';
+import { getSourceBadgeProps } from '../../../lib/constants';
 
 function Th({ children, className = '' }) {
   return (
@@ -17,6 +18,8 @@ function Th({ children, className = '' }) {
 export default function SiswaTable({
   items = [],
   isLoading = false,
+  page = 1,
+  limit = 10,
   onViewDetail,
   onDelete,
   onSwitchTab,
@@ -66,7 +69,8 @@ export default function SiswaTable({
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-line bg-elevated">
-            <Th className="pl-6">NIS</Th>
+            <Th className="pl-6 w-16">NO</Th>
+            <Th className="px-4">NIS</Th>
             <Th>Nama Siswa</Th>
             <Th>Kelas</Th>
             <Th>Source</Th>
@@ -74,21 +78,23 @@ export default function SiswaTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-line text-ink">
-          {items.map((item) => {
+          {items.map((item, index) => {
+            const rowNumber = (page - 1) * limit + index + 1;
             const sourceType = item.source_type || item.source;
-            const isExcel = sourceType === 'excel';
-            const sourceLabel = isExcel ? 'Excel' : 'Manual';
-            const sourceTone = isExcel ? 'info' : 'warning';
+            const badgeProps = getSourceBadgeProps(sourceType);
 
             return (
               <tr key={item.id} className="hover:bg-input/50 transition-colors">
-                <td className="py-3.5 pl-6 font-mono text-sm font-medium text-ink">
+                <td className="py-3.5 pl-6 font-mono text-sm text-muted">
+                  {rowNumber}
+                </td>
+                <td className="px-4 py-3.5 font-mono text-sm font-medium text-ink">
                   {item.nis}
                 </td>
                 <td className="px-4 py-3.5 font-medium text-ink">{item.nama}</td>
                 <td className="px-4 py-3.5 text-ink">{item.kelas}</td>
                 <td className="px-4 py-3.5">
-                  <Badge tone={sourceTone}>{sourceLabel}</Badge>
+                  <Badge tone={badgeProps.tone}>{badgeProps.label}</Badge>
                 </td>
                 <td className="py-3.5 pr-6 text-right">
                   <div className="flex items-center justify-end gap-1">

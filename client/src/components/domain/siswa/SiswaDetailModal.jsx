@@ -1,7 +1,7 @@
 import { X, ChevronDown } from 'lucide-react';
 import Dialog from '../../ui/Dialog';
 import Button from '../../ui/Button';
-import { MAPPEL } from '../../../lib/constants';
+import { MAPPEL, getSourceBadgeProps } from '../../../lib/constants';
 import { useSiswaDetail } from '../../../hooks/useSiswa';
 
 function ReadOnlyField({ label, value, isMono = false }) {
@@ -53,7 +53,7 @@ export default function SiswaDetailModal({ studentId, open, onClose }) {
   const kelas = siswaPeriode?.kelas ?? detailData?.kelas ?? '-';
 
   const sourceType = siswaPeriode?.source_type || detailData?.source_type || detailData?.source;
-  const sourceLabel = sourceType === 'excel' ? 'Excel' : 'Manual';
+  const sourceBadgeProps = getSourceBadgeProps(sourceType);
 
   const jkRaw = siswa?.jenis_kelamin ?? detailData?.jenis_kelamin;
   const jkLabel = jkRaw === 'L' ? 'Laki-laki' : jkRaw === 'P' ? 'Perempuan' : (jkRaw || '-');
@@ -81,7 +81,7 @@ export default function SiswaDetailModal({ studentId, open, onClose }) {
           <p className="mt-1 text-sm text-muted">
             NIS: <span className="font-mono text-ink font-medium">{nis}</span> - Kelas{' '}
             <span className="text-ink font-medium">{kelas}</span> - Source:{' '}
-            <span className="text-ink font-medium">{sourceLabel}</span>
+            <span className="text-ink font-medium">{sourceBadgeProps.label}</span>
           </p>
         </div>
         <button
