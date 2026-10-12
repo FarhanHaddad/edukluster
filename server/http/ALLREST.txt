@@ -570,6 +570,23 @@ GET {{baseUrl}}/siswa/template-excel
 Authorization: Bearer {{token}}
 
 ### 14. Preview Import Excel — file valid (Wajib 200 status "success", errors [])
+# Bentuk rows[] per sheet (tiket B1 + perluasan BE-IMP-3 — tiap item HANYA menambah 2 field baru,
+# field lama row/nis/nama/kelas/status/keterangan tetap):
+#   {
+#     "row": 3, "nis": "20250002", "nama": "Bobi", "kelas": "XII-2",
+#     "status": "valid|missing|error", "keterangan": "...",
+#     "jenis_kelamin": "L"|"P"|null,   // hasil normalizeJenisKelamin dr SEL sheet ini; null bila kolom tak ada (PTS/PAS/NON-AKADEMIK), sel kosong, atau invalid
+#     "values": { ... }                // isi sel per sheet supaya FE render langsung dari rows (tanpa join previewData)
+#   }
+# Semantik values:
+#   - Sheet RAPOR/PTS/PAS : 18 key mapel (agama..ekonomi) -> number|null.
+#   - Sheet NON-AKADEMIK  : 7 key string (ekstrakurikuler, prestasi, kemampuan, organisasi, kursus, jurusan_1, jurusan_2).
+#   - Baris status valid/missing (juga error GLOBAL spt NIS dup/tidak ditemukan di sheet lain — selnya lolos validasi):
+#       nilai PASCA-normalisasi: akademik missing = null; non-akademik kosong = default D4
+#       ("Tidak Mengikuti","Tidak","Tidak Ada","Tidak","Tidak","Tidak Memilih","Tidak Memilih").
+#   - Baris dgn error LOKAL di sheet tsb (mis. nilai 150 / JK invalid / teks non-numerik):
+#       nilai RAW hasil parse (forensik: admin melihat sel penyebab error; non-akademik kosong => "").
+# Field lain TIDAK berubah: summary, sheets[].status, sheets[].errors, previewData, errors global, previewId.
 # Unduh dulu template via request 13, isi baris datanya, lalu upload:
 POST {{baseUrl}}/siswa/import-excel/preview
 Authorization: Bearer {{token}}
