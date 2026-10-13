@@ -1,8 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 
-async function fetchSiswaList({ page = 1, limit = 10, q = '', kelas = '', source = '', periode_id = '' }) {
-  const params = { page, limit };
+async function fetchSiswaList({
+  page = 1,
+  limit = 10,
+  q = '',
+  kelas = '',
+  source = '',
+  sort_by = 'nis',
+  sort_order = 'asc',
+  periode_id = '',
+}) {
+  const params = { page, limit, sort_by, sort_order };
   if (q) params.q = q;
   if (kelas) params.kelas = kelas;
   if (source) params.source = source;
@@ -19,10 +28,20 @@ async function fetchSiswaList({ page = 1, limit = 10, q = '', kelas = '', source
 }
 
 export function useSiswaList(params = {}) {
-  const { page = 1, limit = 10, q = '', kelas = '', source = '', periode_id = '' } = params;
+  const {
+    page = 1,
+    limit = 10,
+    q = '',
+    kelas = '',
+    source = '',
+    sort_by = 'nis',
+    sort_order = 'asc',
+    periode_id = '',
+  } = params;
   return useQuery({
-    queryKey: ['siswa', { page, limit, q, kelas, source, periode_id }],
-    queryFn: () => fetchSiswaList({ page, limit, q, kelas, source, periode_id }),
+    queryKey: ['siswa', { page, limit, q, kelas, source, sort_by, sort_order, periode_id }],
+    queryFn: () =>
+      fetchSiswaList({ page, limit, q, kelas, source, sort_by, sort_order, periode_id }),
     staleTime: 10_000,
   });
 }

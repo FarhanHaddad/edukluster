@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Eye, Pencil, Trash2, Users, FileSpreadsheet } from 'lucide-react';
 import Badge from '../../ui/Badge';
 import Button from '../../ui/Button';
-import Tooltip from '../../ui/Tooltip';
+import SortableHeader from './SortableHeader';
 import { getSourceBadgeProps } from '../../../lib/constants';
 
 function Th({ children, className = '' }) {
@@ -23,6 +23,12 @@ export default function SiswaTable({
   onViewDetail,
   onDelete,
   onSwitchTab,
+  onDownloadTemplate,
+  hasActiveFilter = false,
+  onResetFilter,
+  sortBy = 'nis',
+  sortOrder = 'asc',
+  onSortChange,
 }) {
   if (isLoading) {
     return (
@@ -38,27 +44,47 @@ export default function SiswaTable({
         <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-brand-tint">
           <Users size={24} className="text-brand" aria-hidden="true" />
         </div>
-        <h2 className="text-base font-semibold leading-6 text-ink">Belum ada data siswa</h2>
+        <h2 className="text-base font-semibold leading-6 text-ink">
+          {hasActiveFilter
+            ? 'Tidak ada siswa yang cocok dengan pencarian/filter aktif.'
+            : 'Belum ada data siswa'}
+        </h2>
         <p className="mt-2 max-w-md text-sm leading-5 text-muted">
-          Mulai dengan menambahkan siswa satu per satu atau import berkas Excel template sesuai format clustering EduCluster.
+          {hasActiveFilter
+            ? 'Coba ubah kata kunci atau atur ulang filter untuk melihat data siswa.'
+            : 'Mulai dengan menambahkan siswa satu per satu atau import berkas Excel template sesuai format clustering EduCluster.'}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <Tooltip content="Segera hadir">
-            <Button variant="solid" disabled className="w-full sm:w-auto">
-              <FileSpreadsheet size={16} aria-hidden="true" />
-              Import Excel
+          {hasActiveFilter && (
+            <Button variant="outline" onClick={onResetFilter} className="w-full sm:w-auto">
+              Reset Filter
             </Button>
-          </Tooltip>
+          )}
 
-          <Button variant="outline" className="w-full sm:w-auto" onClick={() => onSwitchTab?.('single_input')}>
+          <Button
+            variant="solid"
+            onClick={() => onSwitchTab?.('excel')}
+            className="w-full sm:w-auto"
+          >
+            <FileSpreadsheet size={16} aria-hidden="true" />
+            Import Excel
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => onSwitchTab?.('single_input')}
+          >
             Single Input
           </Button>
 
-          <Tooltip content="Segera hadir">
-            <span className="text-sm font-semibold text-muted opacity-60 cursor-not-allowed underline-offset-4 hover:underline">
-              Unduh Template Excel (.xlsx)
-            </span>
-          </Tooltip>
+          <button
+            type="button"
+            onClick={onDownloadTemplate}
+            className="text-sm font-semibold text-brand hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded px-1 cursor-pointer"
+          >
+            Unduh Template Excel (.xlsx)
+          </button>
         </div>
       </div>
     );
@@ -70,8 +96,20 @@ export default function SiswaTable({
         <thead>
           <tr className="border-b border-line bg-elevated">
             <Th className="pl-6 w-16">NO</Th>
-            <Th className="px-4">NIS</Th>
-            <Th>Nama Siswa</Th>
+            <SortableHeader
+              field="nis"
+              label="NIS"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={onSortChange}
+            />
+            <SortableHeader
+              field="nama"
+              label="Nama Siswa"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={onSortChange}
+            />
             <Th>Kelas</Th>
             <Th>Source</Th>
             <Th className="pr-6 text-right">Aksi</Th>
