@@ -316,7 +316,7 @@ export default function ImportExcelWizard({ onSwitchToDaftarTab, showToast }) {
   const totalRows = previewData?.summary?.totalRows ?? 0;
 
   return (
-    <div className="flex flex-col min-h-[500px]">
+    <div className="flex flex-col min-h-125">
       {/* STEPPER HEADER */}
       <div className="p-6 border-b border-line bg-card">
         <div className="flex items-center justify-between max-w-3xl mx-auto">
