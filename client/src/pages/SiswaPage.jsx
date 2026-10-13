@@ -13,48 +13,44 @@ import DeleteSiswaDialog from '../components/domain/siswa/DeleteSiswaDialog';
 import SiswaForm from '../components/domain/siswa/SiswaForm';
 import ImportExcelWizard from '../components/domain/siswa/import/ImportExcelWizard';
 import Toast from '../components/domain/siswa/Toast';
+import api from '../lib/api';
 import { cn } from '../lib/utils';
 
 export default function SiswaPage() {
-  // Active period
   const { data: summary } = useDashboardSummary();
   const activePeriode = summary?.periodeAktif ?? null;
   const periodeNama = activePeriode?.namaPeriode ?? '2025/2026 Ganjil';
 
-  // Active tab: 'daftar' | 'single_input' | 'excel'
   const [activeTab, setActiveTab] = useState('daftar');
-
-  // Filter & Pagination params for tab Daftar Siswa
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [kelas, setKelas] = useState('');
   const [source, setSource] = useState('');
+  const [sortBy, setSortBy] = useState('nis');
+  const [sortOrder, setSortOrder] = useState('asc');
 
-  // Server error on NIS for single_input form
   const [serverNisError, setServerNisError] = useState(null);
 
-  // Query list siswa
-  const { data, isLoading } = useSiswaList({
+  const { data, isLoading, isError, refetch } = useSiswaList({
     page,
     limit: 10,
     q: search,
     kelas,
     source,
+    sort_by: sortBy,
+    sort_order: sortOrder,
     periode_id: activePeriode?.id ?? '',
   });
 
   const total = data?.total ?? 0;
   const items = data?.items ?? [];
 
-  // Modals state
   const [detailStudentId, setDetailStudentId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // Mutations
   const deleteMutation = useDeleteSiswa();
   const createMutation = useCreateSiswa();
 
-  // Toast state
   const [toast, setToast] = useState({ open: false, message: '', tone: 'danger' });
 
   const showToast = (message, tone = 'danger') => {
@@ -76,22 +72,44 @@ export default function SiswaPage() {
     setPage(1);
   };
 
+  const handleSortChange = (newSortBy, newSortOrder) => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+    setPage(1);
+  };
+
+  const handleResetFilter = () => {
+    setSearch('');
+    setKelas('');
+    setSource('');
+    setPage(1);
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await api.get('/siswa/template-excel', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'template-import-siswa.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      showToast('Gagal mengunduh template Excel.', 'danger');
+    }
+  };
+
   const handleDeleteConfirm = async (student) => {
     try {
-      await deleteMutation.mutateAsync({
-        id: student.id,
-        periode_id: activePeriode?.id,
-      });
+      await deleteMutation.mutateAsync({ id: student.id, periode_id: activePeriode?.id });
       setDeleteTarget(null);
       showToast('Siswa berhasil dihapus dari periode ini.', 'success');
     } catch (err) {
       setDeleteTarget(null);
-      const status = err.response?.status;
-      if (status === 409) {
-        showToast(
-          'Siswa tidak bisa dihapus karena sudah memiliki hasil clustering & rekomendasi.',
-          'danger'
-        );
+      if (err.response?.status === 409) {
+        showToast('Siswa tidak bisa dihapus karena sudah memiliki hasil clustering & rekomendasi.', 'danger');
       } else {
         const msg = err.response?.data?.message || 'Gagal menghapus data siswa.';
         showToast(msg, 'danger');
@@ -102,16 +120,11 @@ export default function SiswaPage() {
   const handleCreateSubmit = async (formData) => {
     try {
       setServerNisError(null);
-      const payload = {
-        ...formData,
-        periode_id: activePeriode?.id,
-      };
-      await createMutation.mutateAsync(payload);
+      await createMutation.mutateAsync({ ...formData, periode_id: activePeriode?.id });
       showToast('Siswa berhasil ditambahkan.', 'success');
       setActiveTab('daftar');
     } catch (err) {
-      const status = err.response?.status;
-      if (status === 409) {
+      if (err.response?.status === 409) {
         setServerNisError('NIS sudah terdaftar.');
       } else {
         const msg = err.response?.data?.message || 'Gagal menyimpan data siswa.';
@@ -120,25 +133,23 @@ export default function SiswaPage() {
     }
   };
 
+  const hasActiveFilter = Boolean(search?.trim() || kelas || source);
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* ROW 1: HEADER */}
       <PageHeader
         title="Data Siswa"
         description="Kelola data akademik dan non-akademik siswa pada periode aktif."
         periodChip={<PeriodChip namaPeriode={periodeNama} />}
       />
 
-      {/* ROW 2: TAB BAR */}
       <div className="flex border-b border-line gap-6">
         <button
           type="button"
           onClick={() => setActiveTab('daftar')}
           className={cn(
             'flex items-center gap-2 pb-3 pt-1 text-sm font-semibold border-b-2 transition-colors',
-            activeTab === 'daftar'
-              ? 'border-brand text-brand'
-              : 'border-transparent text-muted hover:text-ink'
+            activeTab === 'daftar' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
           )}
         >
           <span>Daftar Siswa</span>
@@ -155,9 +166,7 @@ export default function SiswaPage() {
           }}
           className={cn(
             'pb-3 pt-1 text-sm font-semibold border-b-2 transition-colors',
-            activeTab === 'single_input'
-              ? 'border-brand text-brand'
-              : 'border-transparent text-muted hover:text-ink'
+            activeTab === 'single_input' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
           )}
         >
           Single Input
@@ -168,16 +177,13 @@ export default function SiswaPage() {
           onClick={() => setActiveTab('excel')}
           className={cn(
             'pb-3 pt-1 text-sm font-semibold border-b-2 transition-colors',
-            activeTab === 'excel'
-              ? 'border-brand text-brand'
-              : 'border-transparent text-muted hover:text-ink'
+            activeTab === 'excel' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
           )}
         >
           Import Excel
         </button>
       </div>
 
-      {/* ROW 3: SATU CONTENT CARD */}
       <Card className="p-0 overflow-hidden">
         {activeTab === 'daftar' ? (
           <>
@@ -188,20 +194,28 @@ export default function SiswaPage() {
               onKelasChange={handleKelasChange}
               source={source}
               onSourceChange={handleSourceChange}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
               total={total}
             />
 
             <SiswaTable
               items={items}
               isLoading={isLoading}
+              isError={isError}
+              onRetry={refetch}
               page={page}
               limit={10}
               onViewDetail={(item) => setDetailStudentId(item.id)}
               onDelete={(item) => setDeleteTarget(item)}
               onSwitchTab={(tab) => setActiveTab(tab)}
+              onDownloadTemplate={handleDownloadTemplate}
+              hasActiveFilter={hasActiveFilter}
+              onResetFilter={handleResetFilter}
             />
 
-            {items.length > 0 && (
+            {!isError && items.length > 0 && (
               <SiswaPagination
                 page={page}
                 limit={10}
@@ -227,7 +241,6 @@ export default function SiswaPage() {
         )}
       </Card>
 
-      {/* MODAL & DIALOG & TOAST */}
       <SiswaDetailModal
         studentId={detailStudentId}
         open={Boolean(detailStudentId)}

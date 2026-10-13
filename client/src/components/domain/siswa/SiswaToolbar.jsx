@@ -10,6 +10,9 @@ export default function SiswaToolbar({
   onKelasChange,
   source,
   onSourceChange,
+  sortBy = 'nis',
+  sortOrder = 'asc',
+  onSortChange,
   total = 0,
 }) {
   const [localSearch, setLocalSearch] = useState(search ?? '');
@@ -27,6 +30,21 @@ export default function SiswaToolbar({
     }, 300);
     return () => clearTimeout(handler);
   }, [localSearch, search, onSearchChange]);
+
+  const currentSortValue = `${sortBy}_${sortOrder}`;
+
+  const handleSortSelectChange = (e) => {
+    const value = e.target.value;
+    if (value === 'nis_asc') {
+      onSortChange('nis', 'asc');
+    } else if (value === 'nis_desc') {
+      onSortChange('nis', 'desc');
+    } else if (value === 'nama_asc') {
+      onSortChange('nama', 'asc');
+    } else if (value === 'nama_desc') {
+      onSortChange('nama', 'desc');
+    }
+  };
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-line">
@@ -78,6 +96,25 @@ export default function SiswaToolbar({
             <option value="">Semua Source</option>
             <option value={SOURCE_TYPES.SINGLE_INPUT}>Single Input</option>
             <option value={SOURCE_TYPES.EXCEL_IMPORT}>Import Excel</option>
+          </select>
+          <ChevronDown
+            size={16}
+            className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-faint"
+            aria-hidden="true"
+          />
+        </div>
+
+        {/* Dropdown Urutkan */}
+        <div className="relative">
+          <select
+            value={currentSortValue}
+            onChange={handleSortSelectChange}
+            className="h-10 cursor-pointer appearance-none rounded-lg border border-line bg-input pl-3 pr-8 text-sm font-medium text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 transition-colors"
+          >
+            <option value="nis_asc">NIS Kecil-Besar</option>
+            <option value="nis_desc">NIS Besar-Kecil</option>
+            <option value="nama_asc">Nama A-Z</option>
+            <option value="nama_desc">Nama Z-A</option>
           </select>
           <ChevronDown
             size={16}
