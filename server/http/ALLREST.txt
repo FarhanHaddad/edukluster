@@ -565,6 +565,22 @@ Authorization: Bearer {{token}}
 
 ## ==================== IMPORT EXCEL (tiket B1) ====================
 
+### 15. List Siswa Sort Nama Ascending (Wajib 200, items urut nama A-Z lintas halaman)
+GET {{baseUrl}}/siswa?sort_by=nama&sort_order=asc
+Authorization: Bearer {{token}}
+
+### 16. List Siswa Sort NIS Descending (Wajib 200, items urut NIS besar-kecil)
+GET {{baseUrl}}/siswa?sort_by=nis&sort_order=desc
+Authorization: Bearer {{token}}
+
+### 17. List Siswa Sort Nama Desc + Pagination (Wajib 200, halaman 2 = lanjutan urutan Z-A)
+GET {{baseUrl}}/siswa?sort_by=nama&sort_order=desc&page=2&limit=10
+Authorization: Bearer {{token}}
+
+### 18. List Siswa Sort Ngawur (Wajib 400, errors per field sort_by/sort_order)
+GET {{baseUrl}}/siswa?sort_by=ngawur&sort_order=ngawur
+Authorization: Bearer {{token}}
+
 ### 13. Download Template Excel (Wajib 200, file .xlsx 4 sheet: RAPOR/PTS/PAS/NON-AKADEMIK)
 GET {{baseUrl}}/siswa/template-excel
 Authorization: Bearer {{token}}
