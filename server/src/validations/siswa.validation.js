@@ -131,8 +131,10 @@ const listSiswaQuerySchema = z.object({
   periode_id: z.coerce.number().int().positive('Periode tidak valid').optional(),
   q: z.string().trim().min(1).max(150).optional(),
   kelas: z.string().trim().min(1).max(20).optional(),
-  source: z.enum(['single_input', 'excel'], {
-    message: 'Source harus single_input atau excel',
+  // Kode DB source_type apa adanya (hotfix BE-SOURCE-FIX): FE & DB pakai 'excel_import',
+  // bukan alias legacy 'excel'. Hanya kode DB yang berlaku — tanpa mapping alias.
+  source: z.enum(['single_input', 'excel_import'], {
+    message: 'Source harus single_input atau excel_import',
   }).optional(),
   page: z.coerce.number().int().min(1, 'Page minimal 1').default(1),
   limit: z.coerce.number().int().min(1, 'Limit minimal 1').max(100, 'Limit maksimal 100').default(10),

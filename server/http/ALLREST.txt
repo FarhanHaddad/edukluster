@@ -581,6 +581,24 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/siswa?sort_by=ngawur&sort_order=ngawur
 Authorization: Bearer {{token}}
 
+### 19. List Siswa Filter Source Excel Import (Wajib 200, hanya baris source_type 'excel_import')
+# Hotfix BE-SOURCE-FIX: enum query `source` = kode DB source_type apa adanya
+# ('single_input' | 'excel_import'); alias legacy 'excel' TIDAK berlaku lagi.
+GET {{baseUrl}}/siswa?source=excel_import
+Authorization: Bearer {{token}}
+
+### 20. List Siswa Filter Source Single Input (Wajib 200, hanya baris source_type 'single_input')
+GET {{baseUrl}}/siswa?source=single_input
+Authorization: Bearer {{token}}
+
+### 21. List Siswa Source Excel Import + Sort Nama Desc (Wajib 200, terfilter + terurut Z-A)
+GET {{baseUrl}}/siswa?source=excel_import&sort_by=nama&sort_order=desc
+Authorization: Bearer {{token}}
+
+### 22. List Siswa Source Ngawur (Wajib 400, errors per field source)
+GET {{baseUrl}}/siswa?source=ngawur
+Authorization: Bearer {{token}}
+
 ### 13. Download Template Excel (Wajib 200, file .xlsx 4 sheet: RAPOR/PTS/PAS/NON-AKADEMIK)
 GET {{baseUrl}}/siswa/template-excel
 Authorization: Bearer {{token}}
