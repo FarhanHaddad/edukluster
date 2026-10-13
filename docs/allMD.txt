@@ -38,6 +38,7 @@ client/src/components/domain/siswa/import/ImportExcelWizard.jsx
 client/src/components/domain/siswa/import/ImportStatusBadge.jsx
 client/src/components/domain/siswa/import/ImportStepper.jsx
 client/src/components/domain/siswa/import/PreviewStep.jsx
+client/src/components/domain/siswa/import/PreviewTable.jsx
 client/src/components/domain/siswa/import/ResultStep.jsx
 client/src/components/domain/siswa/import/TemplateFailPanel.jsx
 client/src/components/domain/siswa/import/UploadStep.jsx
