@@ -132,8 +132,8 @@ function buildNilaiData(jenisNilai, mapel) {
   return data;
 }
 
-// GET /api/siswa — daftar siswa pada satu periode + search/filter/pagination (FR-C01).
-async function listSiswa({ periode_id, q, kelas, source, page = 1, limit = 10 }) {
+// GET /api/siswa — daftar siswa pada satu periode + search/filter/pagination/sorting (FR-C01).
+async function listSiswa({ periode_id, q, kelas, source, page = 1, limit = 10, sort_by, sort_order = 'asc' }) {
   const periodeId = await resolvePeriodeId(periode_id);
 
   // Tanpa periode sama sekali (tidak ada AKTIF) → daftar kosong, bukan error.
@@ -149,10 +149,19 @@ async function listSiswa({ periode_id, q, kelas, source, page = 1, limit = 10 })
     ...(source ? { source_type: source } : {}),
   };
 
+  // Sorting dinamis (tiket BE-SORT-1): sort_by='nis'|'nama' -> orderBy relasi siswa.
+  // Tanpa sort_by -> urutan default existing (nis asc) — backward compatible.
+  const DEFAULT_ORDER_BY = { siswa: { nis: 'asc' } };
+  const SORTABLE_FIELDS = ['nis', 'nama'];
+  const orderBy =
+    sort_by && SORTABLE_FIELDS.includes(sort_by)
+      ? { siswa: { [sort_by]: sort_order === 'desc' ? 'desc' : 'asc' } }
+      : DEFAULT_ORDER_BY;
+
   const [rows, total] = await prisma.$transaction([
     prisma.siswa_periode.findMany({
       where,
-      orderBy: { siswa: { nis: 'asc' } },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
       select: {

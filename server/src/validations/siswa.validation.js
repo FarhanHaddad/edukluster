@@ -126,7 +126,7 @@ const updateSiswaSchema = z.object({
   non_akademik: nonAkademikSchema.optional(),
 });
 
-// GET /api/siswa — filter + pagination (q, kelas, source, periode_id, page, limit).
+// GET /api/siswa — filter + pagination + sorting (q, kelas, source, periode_id, page, limit, sort_by, sort_order).
 const listSiswaQuerySchema = z.object({
   periode_id: z.coerce.number().int().positive('Periode tidak valid').optional(),
   q: z.string().trim().min(1).max(150).optional(),
@@ -136,6 +136,13 @@ const listSiswaQuerySchema = z.object({
   }).optional(),
   page: z.coerce.number().int().min(1, 'Page minimal 1').default(1),
   limit: z.coerce.number().int().min(1, 'Limit minimal 1').max(100, 'Limit maksimal 100').default(10),
+  // Sorting server-side (tiket BE-SORT-1): nis | nama; tanpa sort_by = urutan default existing.
+  sort_by: z.enum(['nis', 'nama'], {
+    message: 'Sort by harus nis atau nama',
+  }).optional(),
+  sort_order: z.enum(['asc', 'desc'], {
+    message: 'Sort order harus asc atau desc',
+  }).optional().default('asc'),
 });
 
 // :id pada route GET/PUT/DELETE — validasi param id.
