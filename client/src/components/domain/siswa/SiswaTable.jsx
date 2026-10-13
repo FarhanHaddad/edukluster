@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Eye, Pencil, Trash2, Users, FileSpreadsheet } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import Badge from '../../ui/Badge';
 import Button from '../../ui/Button';
-import SortableHeader from './SortableHeader';
 import { getSourceBadgeProps } from '../../../lib/constants';
 
 function Th({ children, className = '' }) {
@@ -18,6 +17,8 @@ function Th({ children, className = '' }) {
 export default function SiswaTable({
   items = [],
   isLoading = false,
+  isError = false,
+  onRetry,
   page = 1,
   limit = 10,
   onViewDetail,
@@ -26,14 +27,32 @@ export default function SiswaTable({
   onDownloadTemplate,
   hasActiveFilter = false,
   onResetFilter,
-  sortBy = 'nis',
-  sortOrder = 'asc',
-  onSortChange,
 }) {
   if (isLoading) {
     return (
       <div className="flex min-h-64 items-center justify-center py-12">
         <p className="text-sm font-medium text-muted">Memuat data siswa...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center px-6 py-12 text-center">
+        <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-warning-tint">
+          <AlertTriangle size={24} className="text-warning" aria-hidden="true" />
+        </div>
+        <h2 className="text-base font-semibold leading-6 text-ink">
+          Gagal memuat data siswa.
+        </h2>
+        <p className="mt-2 max-w-md text-sm leading-5 text-muted">
+          Terjadi kesalahan saat mengambil data dari server. Coba beberapa saat lagi.
+        </p>
+        <div className="mt-6 flex justify-center">
+          <Button variant="solid" onClick={onRetry} className="w-full sm:w-auto">
+            Coba Lagi
+          </Button>
+        </div>
       </div>
     );
   }
@@ -96,22 +115,10 @@ export default function SiswaTable({
         <thead>
           <tr className="border-b border-line bg-elevated">
             <Th className="pl-6 w-16">NO</Th>
-            <SortableHeader
-              field="nis"
-              label="NIS"
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={onSortChange}
-            />
-            <SortableHeader
-              field="nama"
-              label="Nama Siswa"
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={onSortChange}
-            />
-            <Th>Kelas</Th>
-            <Th>Source</Th>
+            <Th className="px-4">NIS</Th>
+            <Th className="px-4">Nama Siswa</Th>
+            <Th className="px-4">Kelas</Th>
+            <Th className="px-4">Source</Th>
             <Th className="pr-6 text-right">Aksi</Th>
           </tr>
         </thead>

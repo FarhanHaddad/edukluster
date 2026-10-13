@@ -31,7 +31,7 @@ export default function SiswaPage() {
 
   const [serverNisError, setServerNisError] = useState(null);
 
-  const { data, isLoading } = useSiswaList({
+  const { data, isLoading, isError, refetch } = useSiswaList({
     page,
     limit: 10,
     q: search,
@@ -72,13 +72,9 @@ export default function SiswaPage() {
     setPage(1);
   };
 
-  const handleSortChange = (column) => {
-    if (sortBy === column) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortBy(column);
-      setSortOrder('asc');
-    }
+  const handleSortChange = (newSortBy, newSortOrder) => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
     setPage(1);
   };
 
@@ -198,12 +194,17 @@ export default function SiswaPage() {
               onKelasChange={handleKelasChange}
               source={source}
               onSourceChange={handleSourceChange}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
               total={total}
             />
 
             <SiswaTable
               items={items}
               isLoading={isLoading}
+              isError={isError}
+              onRetry={refetch}
               page={page}
               limit={10}
               onViewDetail={(item) => setDetailStudentId(item.id)}
@@ -212,12 +213,9 @@ export default function SiswaPage() {
               onDownloadTemplate={handleDownloadTemplate}
               hasActiveFilter={hasActiveFilter}
               onResetFilter={handleResetFilter}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={handleSortChange}
             />
 
-            {items.length > 0 && (
+            {!isError && items.length > 0 && (
               <SiswaPagination
                 page={page}
                 limit={10}
