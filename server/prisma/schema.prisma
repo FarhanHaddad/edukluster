@@ -22,18 +22,54 @@ model Admin {
 }
 
 model Periode {
-  id                BigInt              @id @default(autoincrement())
-  tahunAjaran       String?             @map("tahun_ajaran") @db.VarChar(20)
-  semester          String?             @db.VarChar(10)
-  namaPeriode       String?             @map("nama_periode") @db.VarChar(50)
-  status            String?             @db.VarChar(20)
-  createdAt         DateTime?           @map("created_at") @db.Timestamp(0)
-  updatedAt         DateTime?           @updatedAt @map("updated_at") @db.Timestamp(0)
-  preprocessing_run preprocessing_run[]
-  siswa_periode     siswa_periode[]
+  id                  BigInt                @id @default(autoincrement())
+  tahunAjaran         String?               @map("tahun_ajaran") @db.VarChar(20)
+  semester            String?               @db.VarChar(10)
+  namaPeriode         String?               @map("nama_periode") @db.VarChar(50)
+  status              String?               @db.VarChar(20)
+  createdAt           DateTime?             @map("created_at") @db.Timestamp(0)
+  updatedAt           DateTime?             @updatedAt @map("updated_at") @db.Timestamp(0)
+  preprocessing_run   preprocessing_run[]
+  siswa_periode       siswa_periode[]
+  category_option     CategoryOption[]
+  category_assignment CategoryAssignment[]
 
   @@unique([tahunAjaran, semester], map: "periode_index_0")
   @@map("periode")
+}
+
+// Kamus nilai kategorik per periode: memetakan (field_name, name) -> code integer.
+// Keputusan V-3=TIDAK: `code` read-only pasca-creation (tidak ada endpoint update kode),
+// sehingga kolom cukup biasa tanpa mekanisme versioning.
+model CategoryOption {
+  id         BigInt               @id @default(autoincrement())
+  periode_id BigInt
+  field_name String               @db.VarChar(30)
+  name       String               @db.VarChar(100)
+  code       Int
+  periode    Periode              @relation(fields: [periode_id], references: [id], onDelete: Cascade)
+  category_assignment CategoryAssignment[]
+
+  @@unique([periode_id, field_name, name], map: "category_option_index_name")
+  @@unique([periode_id, field_name, code], map: "category_option_index_code")
+  @@index([periode_id], map: "category_option_periode_id_idx")
+  @@map("category_option")
+}
+
+// Assignment L2: nilai terstandarisasi (standard_value) per (periode, field_name)
+// yang menunjuk ke opsi kamus CategoryOption.
+model CategoryAssignment {
+  id             BigInt         @id @default(autoincrement())
+  periode_id     BigInt
+  field_name     String         @db.VarChar(30)
+  standard_value String         @db.VarChar(191)
+  option_id      BigInt
+  periode        Periode        @relation(fields: [periode_id], references: [id], onDelete: Cascade)
+  option         CategoryOption @relation(fields: [option_id], references: [id], onDelete: Cascade)
+
+  @@unique([periode_id, field_name, standard_value], map: "category_assignment_index_0")
+  @@index([option_id], map: "category_assignment_option_id_idx")
+  @@map("category_assignment")
 }
 
 model category_mapping {
@@ -46,6 +82,7 @@ model category_mapping {
   updated_at           DateTime?         @db.Timestamp(0)
   preprocessing_run    preprocessing_run @relation(fields: [preprocessing_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "category_mapping_ibfk_1")
 
+  @@unique([preprocessing_run_id, field_name, raw_value], map: "category_mapping_index_run_field_raw")
   @@index([preprocessing_run_id], map: "preprocessing_run_id")
 }
 
@@ -284,15 +321,28 @@ model non_akademik {
 }
 
 model preprocessing_run {
-  id                BigInt             @id @default(autoincrement())
-  periode_id        BigInt
-  admin_id          BigInt
-  imputation_method String?            @db.VarChar(20)
-  status            String?            @db.VarChar(20)
-  started_at        DateTime?          @db.DateTime(0)
-  completed_at      DateTime?          @db.DateTime(0)
-  created_at        DateTime?          @db.Timestamp(0)
-  updated_at        DateTime?          @db.Timestamp(0)
+  id                   BigInt             @id @default(autoincrement())
+  periode_id           BigInt
+  admin_id             BigInt
+  imputation_method    String?            @db.VarChar(20)
+  // Status terkunci: ACTIVE | COMPLETED | SUPERSEDED (validasi di business logic, bukan enum DB).
+  status               String?            @db.VarChar(20)
+  started_at           DateTime?          @db.DateTime(0)
+  completed_at         DateTime?          @db.DateTime(0)
+  // Audit per-stage pipeline: timestamp penyelesaian & durasi (ms) tiap stage.
+  integrated_at        DateTime?          @db.DateTime(0)
+  cleaned_at           DateTime?          @db.DateTime(0)
+  transformed_at       DateTime?          @db.DateTime(0)
+  reduced_at           DateTime?          @db.DateTime(0)
+  integrated_duration_ms Int?
+  cleaned_duration_ms  Int?
+  transformed_duration_ms Int?
+  reduced_duration_ms  Int?
+  // Penanda invalidasi stage hilir ketika run dikerjakan ulang.
+  transformed_invalidated_at DateTime?   @db.DateTime(0)
+  reduced_invalidated_at     DateTime?   @db.DateTime(0)
+  created_at           DateTime?          @db.Timestamp(0)
+  updated_at           DateTime?          @db.Timestamp(0)
   category_mapping  category_mapping[]
   cleaned_data      cleaned_data[]
   integrated_data   integrated_data[]
