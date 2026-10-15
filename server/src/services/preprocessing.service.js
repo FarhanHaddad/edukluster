@@ -393,9 +393,239 @@ async function runIntegration(adminInfo, query) {
   return assemblePipelineStatus(periode);
 }
 
+// ===== BE-PRE-2 Cleaning: statistik missing + mapping L1 + imputasi GLOBAL.
+// Keputusan Owner: imputasi dihitung LINTAS seluruh siswa periode (bukan per kelas).
+// Imputasi HANYA utk 18 mapel akademik — non-akademik sudah di-default saat Integrasi.
+
+const IMPUTATION_METHODS = ['mean', 'median', 'mode'];
+
+// Nilai terimputasi utk satu kolom dari daftar nilai non-null (sudah dibulatkan Decimal 4 dp).
+// - mean   : jumlah / n (HALF_UP 4 dp)
+// - median : rata-rata dua nilai tengah bila genap (standar; HALF_UP 4 dp)
+// - mode   : nilai dengan frekuensi tertinggi; seri lengkap -> null (tidak ada dominasi)
+// Edge-case didokumentasikan: semua metode menghasilkan null bila TIDAK ADA nilai sama sekali.
+function computeImputedValue(method, values) {
+  if (!values || values.length === 0) return null;
+  const dec = values.map((v) => new Prisma.Decimal(v));
+  if (method === 'mean') {
+    const sum = dec.reduce((acc, v) => acc.add(v), new Prisma.Decimal(0));
+    return sum.div(dec.length).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
+  }
+  if (method === 'median') {
+    const sorted = [...dec].sort((a, b) => a.cmp(b));
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 1) return sorted[mid].toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
+    return sorted[mid - 1]
+      .add(sorted[mid])
+      .div(2)
+      .toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
+  }
+  // mode
+  const freq = new Map();
+  for (const v of dec) {
+    const k = v.toFixed(4);
+    freq.set(k, (freq.get(k) ?? 0) + 1);
+  }
+  let bestKey = null;
+  let bestCount = 0;
+  let tie = false;
+  for (const [k, c] of freq) {
+    if (c > bestCount) { bestKey = k; bestCount = c; tie = false; }
+    else if (c === bestCount) { tie = true; }
+  }
+  if (bestKey === null || tie) return null; // semua unik / seri tanpa dominan -> biarkan null
+  return new Prisma.Decimal(bestKey);
+}
+
+// Ambil hasil integrasi run AKTIF (dipakai config & eksekusi cleaning).
+async function getActiveRunIntegratedRows(periodeIdBigInt) {
+  const activeRun = await prisma.preprocessing_run.findFirst({
+    where: { periode_id: periodeIdBigInt, status: RUN_STATUS.ACTIVE },
+    orderBy: [{ started_at: 'desc' }, { id: 'desc' }],
+  });
+  if (!activeRun) return { activeRun: null, integratedRows: [] };
+  const integratedRows = await prisma.integrated_data.findMany({
+    where: { preprocessing_run_id: activeRun.id },
+    orderBy: { siswa_periode_id: 'asc' },
+  });
+  return { activeRun, integratedRows };
+}
+
+// GET /api/preprocessing/cleaning/config — distribusi raw non-akademik + mapping L1
+// run aktif (pre-fill identity bila rawValue belum ter-mapping) + statistik missing akademik.
+async function getCleaningConfig(query) {
+  const periode = await resolvePeriode(query.periodeId);
+  const { activeRun, integratedRows } = await getActiveRunIntegratedRows(periode.id);
+
+  // Mapping L1 tersimpan pada run aktif (category_mapping per run).
+  let mappingsByField = {};
+  if (activeRun) {
+    const mappingRows = await prisma.category_mapping.findMany({
+      where: { preprocessing_run_id: activeRun.id },
+    });
+    for (const m of mappingRows) {
+      if (!m.field_name || !m.raw_value) continue;
+      (mappingsByField[m.field_name] ??= []).push({
+        rawValue: m.raw_value,
+        standardValue: m.standard_value ?? m.raw_value,
+      });
+    }
+  }
+
+  const fields = NON_AKADEMIK_FIELDS.map((fieldName) => {
+    // GROUP BY in-memory atas kolom ini di integrated_data (null tidak dihitung —
+    // Integrasi sudah mengisi default kamus sehingga praktis tidak ada null di sini).
+    const counts = new Map();
+    for (const row of integratedRows) {
+      const raw = row[fieldName];
+      if (raw === null || raw === undefined) continue;
+      counts.set(raw, (counts.get(raw) ?? 0) + 1);
+    }
+    const rawDistribution = [...counts.entries()]
+      .map(([rawValue, count]) => ({ rawValue, count }))
+      .sort((a, b) => b.count - a.count || String(a.rawValue).localeCompare(String(b.rawValue)));
+
+    const stored = mappingsByField[fieldName] ?? [];
+    const storedByRaw = new Map(stored.map((m) => [m.rawValue, m.standardValue]));
+    // Pre-fill identity utk rawValue yang belum punya category_mapping.
+    const mappings = rawDistribution.map(({ rawValue }) => ({
+      rawValue,
+      standardValue: storedByRaw.has(rawValue) ? storedByRaw.get(rawValue) : rawValue,
+    }));
+
+    return { fieldName, rawDistribution, mappings };
+  });
+
+  // Statistik missing 18 mapel akademik: sel NULL vs total siswa terintegrasi.
+  const academicMissing = NUMERIC_FIELDS.map((fieldName) => {
+    let missingCount = 0;
+    for (const row of integratedRows) {
+      if (row[fieldName] === null || row[fieldName] === undefined) missingCount += 1;
+    }
+    return { fieldName, missingCount, totalCount: integratedRows.length };
+  });
+
+  return {
+    imputationMethod: activeRun?.imputation_method ?? null,
+    fields,
+    academicMissing,
+  };
+}
+
+// POST /api/preprocessing/cleaning — jalankan stage cleaning pada run AKTIF.
+// Kontrak BE-PRE-2 (transaksi atomik):
+// a) replace category_mapping run aktif; b) imputasi GLOBAL 18 mapel (abaikan NULL);
+// c) apply mapping L1 ke 7 non-akademik; d) bulk insert cleaned_data;
+// e) audit cleaned_at/duration/imputation_method; f) invalidasi hilir V-4
+// (transformed_invalidated_at & reduced_invalidated_at = now, DELETE transformed/reduced rows);
+// g) response = shape pipeline-status terbaru.
+async function runCleaning(body, adminInfo, query) {
+  const startedWall = Date.now();
+  const periode = await resolvePeriode(query.periodeId);
+  const periodeIdBigInt = periode.id;
+
+  const { activeRun, integratedRows } = await getActiveRunIntegratedRows(periodeIdBigInt);
+  if (!activeRun || integratedRows.length === 0) {
+    throw new ApiError(400, 'Stage integrasi belum selesai dijalankan. Jalankan integrasi terlebih dahulu sebelum cleaning.');
+  }
+
+  // Normalisasi body.mappings -> Map(field -> Map(raw -> standard)), hanya entri string.
+  const mappingMap = new Map();
+  for (const [fieldName, pairs] of Object.entries(body.mappings ?? {})) {
+    if (!NON_AKADEMIK_FIELDS.includes(fieldName) || typeof pairs !== 'object' || pairs === null) continue;
+    const inner = new Map();
+    for (const [rawValue, standardValue] of Object.entries(pairs)) {
+      if (typeof standardValue !== 'string') continue;
+      inner.set(rawValue, standardValue);
+    }
+    if (inner.size > 0) mappingMap.set(fieldName, inner);
+  }
+
+  // (b) Imputasi GLOBAL: kumpulkan nilai non-null per mapel lintas seluruh siswa run ini.
+  const method = body.imputationMethod;
+  const imputedByField = {};
+  for (const field of NUMERIC_FIELDS) {
+    const present = [];
+    for (const row of integratedRows) {
+      const v = row[field];
+      if (v !== null && v !== undefined) present.push(v);
+    }
+    imputedByField[field] = computeImputedValue(method, present);
+  }
+
+  const targetRunId = activeRun.id;
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    // (a) Replace mapping L1 run aktif.
+    await tx.category_mapping.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+    const mappingCreates = [];
+    for (const [fieldName, inner] of mappingMap) {
+      for (const [rawValue, standardValue] of inner) {
+        mappingCreates.push({
+          preprocessing_run_id: targetRunId,
+          field_name: fieldName,
+          raw_value: rawValue,
+          standard_value: standardValue,
+        });
+      }
+    }
+    if (mappingCreates.length > 0) {
+      await tx.category_mapping.createMany({ data: mappingCreates });
+    }
+
+    // (c)+(d) Bangun & simpan cleaned_data (bulk) utk seluruh baris integrasi run aktif.
+    await tx.cleaned_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+    const creates = integratedRows.map((row) => {
+      const out = {
+        preprocessing_run_id: targetRunId,
+        siswa_periode_id: row.siswa_periode_id,
+      };
+      for (const field of NUMERIC_FIELDS) {
+        const v = row[field];
+        // Sel missing akademik diisi nilai imputasi GLOBAL; tetap null bila
+        // imputasi tak terdefinisi (mis. mode seri lengkap tanpa dominasi).
+        out[field] = v !== null && v !== undefined ? v : imputedByField[field];
+      }
+      for (const field of NON_AKADEMIK_FIELDS) {
+        const raw = row[field];
+        const inner = mappingMap.get(field);
+        // Identity fallback bila rawValue tidak ada di mapping FE (tetap ter-standardisasi).
+        out[field] = inner?.get(raw) ?? raw;
+      }
+      return out;
+    });
+    if (creates.length > 0) {
+      await tx.cleaned_data.createMany({ data: creates });
+    }
+
+    // (f) Invalidasi hilir sesuai matriks V-4: Transformasi & Reduksi WAJIB di-reset.
+    await tx.transformed_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+    await tx.reduced_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+
+    // (e) Audit stage cleaning + penanda invalidasi hilir.
+    const finishedAt = new Date();
+    await tx.preprocessing_run.update({
+      where: { id: targetRunId },
+      data: {
+        cleaned_at: finishedAt,
+        cleaned_duration_ms: Math.max(0, finishedAt.getTime() - startedWall),
+        imputation_method: method,
+        transformed_invalidated_at: now,
+        reduced_invalidated_at: now,
+      },
+    });
+  });
+
+  // (g) Response = shape pipeline-status terbaru (kontrak mentor).
+  return assemblePipelineStatus(periode);
+}
+
 module.exports = {
   getPipelineStatus,
   getSourcePreview,
   runIntegration,
-  _internals: { STAGE_STATE, RUN_STATUS, buildStages, resolvePeriode },
+  getCleaningConfig,
+  runCleaning,
+  _internals: { STAGE_STATE, RUN_STATUS, buildStages, resolvePeriode, computeImputedValue },
 };

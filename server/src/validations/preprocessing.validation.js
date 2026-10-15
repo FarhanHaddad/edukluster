@@ -16,4 +16,28 @@ const sourcePreviewQuerySchema = z.object({
   periodeId: z.coerce.number().int().positive('Periode tidak valid').optional(),
 });
 
-module.exports = { pipelineStatusQuerySchema, sourcePreviewQuerySchema };
+// ===== BE-PRE-2 Cleaning.
+// POST /preprocessing/cleaning body (kontrak mentor):
+// { imputationMethod: "mean"|"median"|"mode", mappings: { <field>: { <raw>: <standard> } } }
+// mappings opsional (boleh {}); key field dibatasi string <=50 (schema category_mapping),
+// rawValue <=150, standardValue <=150 sesuai batas kolom DB.
+const cleaningBodySchema = z.object({
+  imputationMethod: z.enum(['mean', 'median', 'mode'], {
+    message: 'Metode imputasi harus mean, median, atau mode',
+  }),
+  mappings: z
+    .record(
+      z.string().min(1, 'Nama field tidak valid').max(50, 'Nama field maksimal 50 karakter'),
+      z.record(
+        z.string().min(1, 'Nilai asal tidak valid').max(150, 'Nilai asal maksimal 150 karakter'),
+        z.string().min(1, 'Nilai standar wajib string').max(150, 'Nilai standar maksimal 150 karakter')
+      )
+    )
+    .default({}),
+});
+
+module.exports = {
+  pipelineStatusQuerySchema,
+  sourcePreviewQuerySchema,
+  cleaningBodySchema,
+};

@@ -59,3 +59,61 @@ Authorization: Bearer {{token}}
 ### 12. Verifikasi badge pasca-integrasi (integrasi SELESAI, cleaning MENUNGGU, transformasi/reduksi TERKUNCI)
 GET {{baseUrl}}/preprocessing/pipeline-status
 Authorization: Bearer {{token}}
+
+### 13. Cleaning Config — distribusi raw non-akademik + mapping L1 (identity pre-fill)
+# + statistik missing akademik (BE-PRE-2). Wajib 200; data: { imputationMethod, fields[7], academicMissing[18] }
+# Pra-syarat: jalankan Integrasi (#9) dulu agar integrated_data terisi.
+GET {{baseUrl}}/preprocessing/cleaning/config
+Authorization: Bearer {{token}}
+
+### 14. Cleaning Config per periode eksplisit
+GET {{baseUrl}}/preprocessing/cleaning/config?periodeId=1
+Authorization: Bearer {{token}}
+
+### 15. Jalankan Cleaning method MEAN + mapping L1 (Wajib 200; response = shape pipeline-status terbaru;
+# cleaned_data terisi (missing akademik = rata-rata GLOBAL), category_mapping run aktif ter-replace,
+# transformed_invalidated_at & reduced_invalidated_at terisi, rows transformed/reduced TERHAPUS (V-4))
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "imputationMethod": "mean",
+  "mappings": {
+    "jurusan_1": { "it": "Teknik Informatika", "si": "Sistem Informasi" },
+    "ekstrakurikuler": { "pram": "Pramuka" }
+  }
+}
+
+### 16. Cleaning method MEDIAN tanpa perubahan mapping (mapping lama tetap tersimpan; Wajib 200)
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "median", "mappings": {} }
+
+### 17. Cleaning method MODE (Wajib 200; mode seri unik -> sel missing tetap null, didokumentasikan)
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "mode" }
+
+### 18. Cleaning dengan imputationMethod tidak valid (Wajib 400 Zod: "Metode imputasi harus mean, median, atau mode")
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "random" }
+
+### 19. Cleaning TANPA integrasi selesai (Wajib 400 Bahasa Indonesia; pakai periode yang belum di-integrasi)
+POST {{baseUrl}}/preprocessing/cleaning?periodeId=2
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "mean", "mappings": {} }
+
+### 20. Verifikasi badge pasca-cleaning (cleaning SELESAI; transformasi/reduksi TERKUNCI krn prasyarat blm SELESAI;
+# setelah re-run integration hilir akan tampil RESET sesuai matriks V-4)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}

@@ -2,6 +2,7 @@ const preprocessingService = require('../services/preprocessing.service');
 const {
   pipelineStatusQuerySchema,
   sourcePreviewQuerySchema,
+  cleaningBodySchema,
 } = require('../validations/preprocessing.validation');
 
 // GET /api/preprocessing/pipeline-status — badge 4 stage + run-meta (FR-D01). Skinny: tanpa logika.
@@ -38,4 +39,35 @@ async function runIntegration(req, res, next) {
   }
 }
 
-module.exports = { getPipelineStatus, getSourcePreview, runIntegration };
+// GET /api/preprocessing/cleaning/config — distribusi raw non-akademik + mapping L1
+// + statistik missing akademik (BE-PRE-2). Skinny: tanpa logika.
+async function getCleaningConfig(req, res, next) {
+  try {
+    const query = pipelineStatusQuerySchema.parse(req.query);
+    const data = await preprocessingService.getCleaningConfig(query);
+    return res.json({ success: true, message: 'Berhasil mengambil konfigurasi cleaning', data });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/preprocessing/cleaning — jalankan cleaning pada run AKTIF (BE-PRE-2).
+// Response = shape pipeline-status terbaru (kontrak mentor).
+async function runCleaning(req, res, next) {
+  try {
+    const body = cleaningBodySchema.parse(req.body);
+    const query = pipelineStatusQuerySchema.parse(req.query);
+    const data = await preprocessingService.runCleaning(body, req.admin, query);
+    return res.json({ success: true, message: 'Cleaning berhasil dijalankan', data });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = {
+  getPipelineStatus,
+  getSourcePreview,
+  runIntegration,
+  getCleaningConfig,
+  runCleaning,
+};
