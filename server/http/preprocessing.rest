@@ -1,0 +1,61 @@
+@baseUrl = http://localhost:5000/api
+
+### 0. Login (Wajib 200 + token)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "satnaing", "password": "widuri2026" }
+
+@token = {{login.response.body.data.token}}
+
+### 1. Pipeline Status TANPA token (Wajib 401)
+GET {{baseUrl}}/preprocessing/pipeline-status
+
+### 2. Pipeline Status — empty state / run pertama (Wajib 200; data: { periodeId, siswaCount, lockedByKmeans, run })
+# run=null bila belum pernah ada preprocessing_run (Frame PRE-1D empty state).
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+### 3. Pipeline Status per periode eksplisit (200; ?periodeId=)
+GET {{baseUrl}}/preprocessing/pipeline-status?periodeId=1
+Authorization: Bearer {{token}}
+
+### 4. Source Preview rapor — raw values 18 mapel (Wajib 200; data: { total, page, limit, rows:[{nis,nama,values}] })
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 5. Source Preview pts
+GET {{baseUrl}}/preprocessing/source-preview?jenis=pts&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 6. Source Preview pas
+GET {{baseUrl}}/preprocessing/source-preview?jenis=pas&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 7. Source Preview non_akademik (kosong tampil default "Tidak Ada"/"Tidak Mengikuti")
+GET {{baseUrl}}/preprocessing/source-preview?jenis=non_akademik&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 8. Source Preview jenis tidak valid (Wajib 400 validasi)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=salah
+Authorization: Bearer {{token}}
+
+### 9. Jalankan Integrasi pada run AKTIF (Wajib 200; response = shape pipeline-status terbaru;
+# integrated_data terisi, integrated_at + integrated_duration_ms teraudit)
+POST {{baseUrl}}/preprocessing/integration
+Authorization: Bearer {{token}}
+
+### 10. Re-run Integrasi (Wajib 200; run lama -> SUPERSEDED, run BARU ACTIVE,
+# stage Cleaning+Transformasi+Reduksi RESET sesuai matriks V-4)
+POST {{baseUrl}}/preprocessing/integration
+Authorization: Bearer {{token}}
+
+### 11. Integrasi pada periode tanpa siswa (Wajib 422 pesan Bahasa Indonesia)
+# Ganti periodeId ke id periode yang belum ada siswanya.
+POST {{baseUrl}}/preprocessing/integration?periodeId=2
+Authorization: Bearer {{token}}
+
+### 12. Verifikasi badge pasca-integrasi (integrasi SELESAI, cleaning MENUNGGU, transformasi/reduksi TERKUNCI)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
