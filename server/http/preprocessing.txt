@@ -1,0 +1,119 @@
+@baseUrl = http://localhost:5000/api
+
+### 0. Login (Wajib 200 + token)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "satnaing", "password": "widuri2026" }
+
+@token = {{login.response.body.data.token}}
+
+### 1. Pipeline Status TANPA token (Wajib 401)
+GET {{baseUrl}}/preprocessing/pipeline-status
+
+### 2. Pipeline Status — empty state / run pertama (Wajib 200; data: { periodeId, siswaCount, lockedByKmeans, run })
+# run=null bila belum pernah ada preprocessing_run (Frame PRE-1D empty state).
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+### 3. Pipeline Status per periode eksplisit (200; ?periodeId=)
+GET {{baseUrl}}/preprocessing/pipeline-status?periodeId=1
+Authorization: Bearer {{token}}
+
+### 4. Source Preview rapor — raw values 18 mapel (Wajib 200; data: { total, page, limit, rows:[{nis,nama,values}] })
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 5. Source Preview pts
+GET {{baseUrl}}/preprocessing/source-preview?jenis=pts&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 6. Source Preview pas
+GET {{baseUrl}}/preprocessing/source-preview?jenis=pas&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 7. Source Preview non_akademik (kosong tampil default "Tidak Ada"/"Tidak Mengikuti")
+GET {{baseUrl}}/preprocessing/source-preview?jenis=non_akademik&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 8. Source Preview jenis tidak valid (Wajib 400 validasi)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=salah
+Authorization: Bearer {{token}}
+
+### 9. Jalankan Integrasi pada run AKTIF (Wajib 200; response = shape pipeline-status terbaru;
+# integrated_data terisi, integrated_at + integrated_duration_ms teraudit)
+POST {{baseUrl}}/preprocessing/integration
+Authorization: Bearer {{token}}
+
+### 10. Re-run Integrasi (Wajib 200; run lama -> SUPERSEDED, run BARU ACTIVE,
+# stage Cleaning+Transformasi+Reduksi RESET sesuai matriks V-4)
+POST {{baseUrl}}/preprocessing/integration
+Authorization: Bearer {{token}}
+
+### 11. Integrasi pada periode tanpa siswa (Wajib 422 pesan Bahasa Indonesia)
+# Ganti periodeId ke id periode yang belum ada siswanya.
+POST {{baseUrl}}/preprocessing/integration?periodeId=2
+Authorization: Bearer {{token}}
+
+### 12. Verifikasi badge pasca-integrasi (integrasi SELESAI, cleaning MENUNGGU, transformasi/reduksi TERKUNCI)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+### 13. Cleaning Config — distribusi raw non-akademik + mapping L1 (identity pre-fill)
+# + statistik missing akademik (BE-PRE-2). Wajib 200; data: { imputationMethod, fields[7], academicMissing[18] }
+# Pra-syarat: jalankan Integrasi (#9) dulu agar integrated_data terisi.
+GET {{baseUrl}}/preprocessing/cleaning/config
+Authorization: Bearer {{token}}
+
+### 14. Cleaning Config per periode eksplisit
+GET {{baseUrl}}/preprocessing/cleaning/config?periodeId=1
+Authorization: Bearer {{token}}
+
+### 15. Jalankan Cleaning method MEAN + mapping L1 (Wajib 200; response = shape pipeline-status terbaru;
+# cleaned_data terisi (missing akademik = rata-rata GLOBAL), category_mapping run aktif ter-replace,
+# transformed_invalidated_at & reduced_invalidated_at terisi, rows transformed/reduced TERHAPUS (V-4))
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "imputationMethod": "mean",
+  "mappings": {
+    "jurusan_1": { "it": "Teknik Informatika", "si": "Sistem Informasi" },
+    "ekstrakurikuler": { "pram": "Pramuka" }
+  }
+}
+
+### 16. Cleaning method MEDIAN tanpa perubahan mapping (mapping lama tetap tersimpan; Wajib 200)
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "median", "mappings": {} }
+
+### 17. Cleaning method MODE (Wajib 200; mode seri unik -> sel missing tetap null, didokumentasikan)
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "mode" }
+
+### 18. Cleaning dengan imputationMethod tidak valid (Wajib 400 Zod: "Metode imputasi harus mean, median, atau mode")
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "random" }
+
+### 19. Cleaning TANPA integrasi selesai (Wajib 400 Bahasa Indonesia; pakai periode yang belum di-integrasi)
+POST {{baseUrl}}/preprocessing/cleaning?periodeId=2
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "mean", "mappings": {} }
+
+### 20. Verifikasi badge pasca-cleaning (cleaning SELESAI; transformasi/reduksi TERKUNCI krn prasyarat blm SELESAI;
+# setelah re-run integration hilir akan tampil RESET sesuai matriks V-4)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}

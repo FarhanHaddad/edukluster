@@ -7,15 +7,14 @@ Content-Type: application/json
 
 { "username": "satnaing", "password": "widuri2026" }
 
-@token = {{login.response.body.data.token}}
-
 ### 1. Pipeline Status TANPA token (Wajib 401)
+@token = {{login.response.body.data.token}}
 GET {{baseUrl}}/preprocessing/pipeline-status
 
-### 2. Pipeline Status — empty state / run pertama (Wajib 200; data: { periodeId, siswaCount, lockedByKmeans, run })
+### 2. Pipeline Status — empty state / run pertama (Wajib 200)
 # run=null bila belum pernah ada preprocessing_run (Frame PRE-1D empty state).
 GET {{baseUrl}}/preprocessing/pipeline-status
-Authorization: Bearer {{token}}
+Authorization: Bearer {{login.response.body.data.token}}
 
 ### 3. Pipeline Status per periode eksplisit (200; ?periodeId=)
 GET {{baseUrl}}/preprocessing/pipeline-status?periodeId=1
