@@ -61,3 +61,42 @@ export function useRunIntegration() {
     },
   });
 }
+
+// GET /preprocessing/cleaning/config
+async function fetchCleaningConfig(periodeId) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const res = await api.get('/preprocessing/cleaning/config', { params });
+  return res.data?.data ?? null;
+}
+
+export function useCleaningConfig(periodeId, options = {}) {
+  return useQuery({
+    queryKey: ['cleaning-config', periodeId ?? 'active'],
+    queryFn: () => fetchCleaningConfig(periodeId),
+    staleTime: 10_000,
+    ...options,
+  });
+}
+
+// POST /preprocessing/cleaning
+async function runCleaning({ periodeId, imputationMethod, mappings }) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const payload = { imputationMethod, mappings };
+  const res = await api.post('/preprocessing/cleaning', payload, { params });
+  return res.data?.data ?? res.data;
+}
+
+export function useRunCleaning() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: runCleaning,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['preprocessing-status'] });
+      queryClient.invalidateQueries({ queryKey: ['cleaning-config'] });
+      queryClient.invalidateQueries({ queryKey: ['source-preview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}
