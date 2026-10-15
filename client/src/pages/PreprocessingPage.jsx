@@ -8,6 +8,7 @@ import InfoBanner from '../components/domain/InfoBanner';
 import Button from '../components/ui/Button';
 import PreprocessingTabBar from '../components/domain/preprocessing/PreprocessingTabBar';
 import IntegrasiTab from '../components/domain/preprocessing/IntegrasiTab';
+import CleaningTab from '../components/domain/preprocessing/CleaningTab';
 import PreprocessingEmptyState from '../components/domain/preprocessing/PreprocessingEmptyState';
 import Toast from '../components/domain/siswa/Toast';
 import { Lock } from 'lucide-react';
@@ -142,6 +143,16 @@ export default function PreprocessingPage() {
               siswaCount={siswaCount}
               onRunIntegration={handleRunIntegration}
               isRunning={runMutation.isPending}
+            />
+          ) : activeTab === 'cleaning' ? (
+            <CleaningTab
+              periodeId={activePeriode?.id}
+              stageData={stages.cleaning}
+              integrasiState={stages.integrasi?.state}
+              siswaCount={siswaCount}
+              onSuccess={() => handleSelectTab('transformasi')}
+              refetchPipeline={refetch}
+              setToast={setToast}
             />
           ) : (
             <div className="pt-6 space-y-6">
