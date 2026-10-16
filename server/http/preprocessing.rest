@@ -116,3 +116,72 @@ Authorization: Bearer {{token}}
 # setelah re-run integration hilir akan tampil RESET sesuai matriks V-4)
 GET {{baseUrl}}/preprocessing/pipeline-status
 Authorization: Bearer {{token}}
+
+### 21. Transform Config — kamus bidang L2 + assignedValues + unmapped (BE-PRE-3)
+# Lazy seed: GET config PERDANA menyisipkan seluruh KAMUS_BIDANG ke category_option periode ini
+# (cek: SELECT * FROM category_option WHERE periode_id=...). Pra-syarat: Cleaning SELESAI (#15),
+# else 400 Bahasa Indonesia. data: { fields[7]: { fieldName, options[{id,name,code,assignedValues}], unmapped[] } }
+GET {{baseUrl}}/preprocessing/transform/config
+Authorization: Bearer {{token}}
+
+### 22. Transform Config per periode eksplisit
+GET {{baseUrl}}/preprocessing/transform/config?periodeId=1
+Authorization: Bearer {{token}}
+
+### 23. Buat Bidang Kamus TANPA code -> code default = max(code)+1 per (periode,field) (Wajib 201;
+# TIDAK invalidate hilir — buat bidang tanpa assignment = no-op bagi transformed/reduced)
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "name": "Keagamaan" }
+
+### 24. Buat Bidang Kamus dengan code eksplisit (Wajib 201 selama unik per periode+field)
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "prestasi", "name": "Debat", "code": 6 }
+
+### 25. Duplikat name (periode,field,name) -> Wajib 422 Bahasa Indonesia
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "name": "Olahraga" }
+
+### 26. Duplikat code (periode,field,code) -> Wajib 422 Bahasa Indonesia (V-3: kode create-only,
+# ganti kode = DELETE #28 lalu POST lagi; TIDAK ada endpoint update)
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "name": "Bidang Baru", "code": 2 }
+
+### 27. Mapping L2: petakan nilai standar -> bidang (upsert unique periode+field+standard_value).
+# Ganti id option dgn id hasil #21 (data.fields[].options[].id).
+# JIKA transformed_data run aktif ADA -> invalidasi V-4: DELETE transformed+reduced,
+# kedua flag invalidated terisi -> badge Transformasi & Reduksi RESET (downstreamInvalidated=true).
+POST {{baseUrl}}/preprocessing/transform/assignments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "optionId": 2, "standardValues": ["Pramuka", "Olimpiade Matematika"] }
+
+### 28. Hapus Bidang Kamus (trash) -> assignment cascade hilang, nilai balik ke unmapped.
+# Ganti :id dengan id opsi riil dari #21. Jika transformed_data ada -> V-4 (kedua badge RESET).
+DELETE {{baseUrl}}/preprocessing/transform/options/3
+Authorization: Bearer {{token}}
+
+### 29. Jalankan Transformasi — Gate: cleaning SELESAI (else 400); unmapped kosong (else 422 + daftar unmapped di data.unmapped).
+# Encode 7 non-akademik via assignment->code, Min-Max 25 kolom Decimal(8,4) lintas seluruh siswa
+# (kolom konstan -> 0, ruling V-2). Re-run delete+insert satu transaksi. Sukses -> transformed_at +
+# transformed_duration_ms terisi, transformed_invalidated_at & reduced_invalidated_at DI-CLEAR
+# (Reduksi jadi MENUNGGU, bukan RESET). Response = shape pipeline-status terbaru.
+POST {{baseUrl}}/preprocessing/transform/run
+Authorization: Bearer {{token}}
+
+### 30. Verifikasi badge pasca-transformasi (transformasi SELESAI; reduksi MENUNGGU; oracle: bandingkan
+# transformed_data vs workbook sheet "Transformation Normalisasi" toleransi ±0.005 min 3 kolom)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}

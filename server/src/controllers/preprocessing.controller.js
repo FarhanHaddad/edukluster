@@ -3,6 +3,10 @@ const {
   pipelineStatusQuerySchema,
   sourcePreviewQuerySchema,
   cleaningBodySchema,
+  transformConfigQuerySchema,
+  transformOptionBodySchema,
+  transformOptionIdParamSchema,
+  transformAssignmentsBodySchema,
 } = require('../validations/preprocessing.validation');
 
 // GET /api/preprocessing/pipeline-status — badge 4 stage + run-meta (FR-D01). Skinny: tanpa logika.
@@ -64,10 +68,76 @@ async function runCleaning(req, res, next) {
   }
 }
 
+// ===== BE-PRE-3 Transformasi (semua skinny: Zod -> service -> response standar).
+
+// GET /api/preprocessing/transform/config — kamus bidang + assignedValues + unmapped.
+async function getTransformConfig(req, res, next) {
+  try {
+    const query = transformConfigQuerySchema.parse(req.query);
+    const data = await preprocessingService.getTransformConfig(query);
+    return res.json({ success: true, message: 'Berhasil mengambil konfigurasi transformasi', data });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/preprocessing/transform/options — buat bidang kamus (code default max+1; V-3 create-only).
+async function createTransformOption(req, res, next) {
+  try {
+    const body = transformOptionBodySchema.parse(req.body);
+    const query = pipelineStatusQuerySchema.parse(req.query);
+    const data = await preprocessingService.createTransformOption(body, query);
+    return res.status(201).json({ success: true, message: 'Bidang kamus berhasil dibuat', data });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// DELETE /api/preprocessing/transform/options/:id — trash bidang; V-4 bila transformed ada.
+async function deleteTransformOption(req, res, next) {
+  try {
+    const params = transformOptionIdParamSchema.parse(req.params);
+    const query = pipelineStatusQuerySchema.parse(req.query);
+    const data = await preprocessingService.deleteTransformOption(params, query);
+    return res.json({ success: true, message: 'Bidang kamus berhasil dihapus', data });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/preprocessing/transform/assignments — upsert L2 nilai standar -> bidang.
+async function saveTransformAssignments(req, res, next) {
+  try {
+    const body = transformAssignmentsBodySchema.parse(req.body);
+    const query = pipelineStatusQuerySchema.parse(req.query);
+    const data = await preprocessingService.saveTransformAssignments(body, query);
+    return res.json({ success: true, message: 'Pemetaan bidang berhasil disimpan', data });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// POST /api/preprocessing/transform/run — encode + min-max pada run AKTIF.
+// Response sukses = shape pipeline-status terbaru (kontrak mentor).
+async function runTransform(req, res, next) {
+  try {
+    const query = pipelineStatusQuerySchema.parse(req.query);
+    const data = await preprocessingService.runTransform(req.admin, query);
+    return res.json({ success: true, message: 'Transformasi berhasil dijalankan', data });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getPipelineStatus,
   getSourcePreview,
   runIntegration,
   getCleaningConfig,
   runCleaning,
+  getTransformConfig,
+  createTransformOption,
+  deleteTransformOption,
+  saveTransformAssignments,
+  runTransform,
 };
