@@ -717,6 +717,18 @@ async function getTransformConfig(query) {
     assignedSet.add(`${a.field_name}\u0000${a.standard_value}`);
   }
 
+  // Distribusi distinct nilai standar per field dari cleaned_data run aktif —
+  // dipakai untuk mengisi `count` pada assignedValues DAN unmapped (kontrak:
+  // count = jumlah siswa dengan nilai standar tersebut di run aktif).
+  const stdCountsByField = new Map();
+  for (const fieldName of NON_AKADEMIK_FIELDS) {
+    const map = new Map();
+    for (const { standardValue, count } of stdValueCounts(cleanedRows, fieldName)) {
+      map.set(standardValue, count);
+    }
+    stdCountsByField.set(fieldName, map);
+  }
+
   const optionsByField = new Map();
   for (const o of options) {
     if (!optionsByField.has(o.field_name)) optionsByField.set(o.field_name, []);
@@ -724,11 +736,12 @@ async function getTransformConfig(query) {
   }
 
   const fields = NON_AKADEMIK_FIELDS.map((fieldName) => {
+    const fieldCounts = stdCountsByField.get(fieldName);
     const fieldOptions = (optionsByField.get(fieldName) ?? []).map((o) => {
       const assigned = assignedByFieldOption.get(`${fieldName}\u0000${toNumber(o.id)}`) ?? [];
       const assignedValues = assigned
-        .map((a) => ({ standardValue: a.standard_value }))
-        .sort((x, y) => String(x.standardValue).localeCompare(String(y.standardValue)));
+        .map((a) => ({ standardValue: a.standard_value, count: fieldCounts.get(a.standard_value) ?? 0 }))
+        .sort((x, y) => y.count - x.count || String(x.standardValue).localeCompare(String(y.standardValue)));
       return { id: toNumber(o.id), name: o.name, code: o.code, assignedValues };
     });
     const unmapped = stdValueCounts(cleanedRows, fieldName)
