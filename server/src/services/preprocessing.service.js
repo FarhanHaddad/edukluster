@@ -1,7 +1,7 @@
 const { Prisma } = require('@prisma/client');
 const prisma = require('../lib/prisma');
 const ApiError = require('../utils/ApiError');
-const { MATA_PELAJARAN_COLUMNS, NON_AKADEMIK_DEFAULTS } = require('../utils/excelConstants');
+const { MATA_PELAJARAN_COLUMNS, NON_AKADEMIK_DEFAULTS, HEADER_NAMA, HEADER_KELAS, HEADER_JENIS_KELAMIN } = require('../utils/excelConstants');
 
 // ===== Vokabulari app-level (tanpa enum DB).
 // Status preprocessing_run: terkunci ACTIVE | COMPLETED | SUPERSEDED (lihat komentar schema BE-PRE-0).
@@ -12,6 +12,16 @@ const STAGE_STATE = { MENUNGGU: 'MENUNGGU', SELESAI: 'SELESAI', RESET: 'RESET', 
 // 18 mapel numerik (urutan kanonik excelConstants) + kolom non-akademik string.
 const NUMERIC_FIELDS = MATA_PELAJARAN_COLUMNS.map((c) => c.dbKey);
 const NON_AKADEMIK_FIELDS = ['ekstrakurikuler', 'prestasi', 'kemampuan', 'organisasi', 'kursus', 'jurusan_1', 'jurusan_2'];
+
+// ===== BE-PRE-4 Reduksi (FR-D04): kontrak ringkasan "kolom yang dibuang".
+// Sumber kebenaran label identitas = header kanonik excelConstants (HEADER_NAMA/HEADER_KELAS/
+// HEADER_JENIS_KELAMIN). NIS TIDAK dibuang — dipertahankan sebagai META via join
+// siswa_periode -> siswa (tabel reduced_data memang tidak punya kolom identitas apa pun).
+const REDUCTION_DROPPED_LABELS = [HEADER_NAMA, HEADER_KELAS, HEADER_JENIS_KELAMIN];
+// 25 fitur hasil transformasi yang diproyeksikan apa adanya ke reduced_data.
+const REDUCTION_FEATURE_FIELDS = [...NUMERIC_FIELDS, ...NON_AKADEMIK_FIELDS];
+// Ringkasan fitur final utk response summary (kontrak tiket).
+const REDUCTION_FITUR_FINAL = `${REDUCTION_FEATURE_FIELDS.length} numerik + NIS (meta)`;
 
 // RULE WAJIB: BigInt -> Number di semua response.
 function toNumber(value) {
@@ -993,6 +1003,93 @@ async function runTransform(adminInfo, query) {
   return assemblePipelineStatus(periode);
 }
 
+// ===== BE-PRE-4 Reduksi (FR-D04): PROYEKSI murni transformed_data -> reduced_data.
+// Reduksi atribut identitas: kolom Nama/Kelas/Jenis Kelamin TIDAK dialirkan ke reduced_data;
+// NIS tetap tersedia sebagai META via join siswa_periode -> siswa (tidak ada kolom identitas di DB).
+// PENTING: tidak ada komputasi ulang apa pun — nilai reduced IDENTIK dengan transformed per kolom
+// (oracle spot-check selisih 0). Gate: Transformasi SELESAI (transformed_data run AKTIF > 0) else 400.
+async function runReduction(adminInfo, query) {
+  const startedWall = Date.now();
+  const periode = await resolvePeriode(query.periodeId);
+  const periodeIdBigInt = periode.id;
+
+  const activeRun = await prisma.preprocessing_run.findFirst({
+    where: { periode_id: periodeIdBigInt, status: RUN_STATUS.ACTIVE },
+    orderBy: [{ started_at: 'desc' }, { id: 'desc' }],
+  });
+
+  const transformedCount = activeRun
+    ? await prisma.transformed_data.count({ where: { preprocessing_run_id: activeRun.id } })
+    : 0;
+  if (!activeRun || transformedCount === 0) {
+    throw new ApiError(400, 'Stage transformasi belum selesai dijalankan. Jalankan transformasi terlebih dahulu sebelum reduksi.');
+  }
+
+  const targetRunId = activeRun.id;
+  const finishedAt = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    // Proyeksi 25 kolom + FK siswa_periode_id (select eksplisit = jaminan tidak ada kolom identitas).
+    const sourceRows = await tx.transformed_data.findMany({
+      where: { preprocessing_run_id: targetRunId },
+      select: { siswa_periode_id: true, ...REDUCTION_FEATURE_FIELDS.reduce((acc, f) => ({ ...acc, [f]: true }), {}) },
+      orderBy: { siswa_periode_id: 'asc' },
+    });
+
+    // Re-run diizinkan: delete+insert dalam SATU transaksi (atomik).
+    await tx.reduced_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+    if (sourceRows.length > 0) {
+      await tx.reduced_data.createMany({
+        data: sourceRows.map((row) => ({
+          preprocessing_run_id: targetRunId,
+          siswa_periode_id: row.siswa_periode_id,
+          ...REDUCTION_FEATURE_FIELDS.reduce((acc, f) => ({ ...acc, [f]: row[f] }), {}),
+        })),
+      });
+    }
+
+    // Audit stage reduksi + clear penanda invalidasi milik sendiri.
+    // Status run COMPLETED: seluruh tahap pipeline (integrasi..reduksi) sudah menghasilkan data
+    // pada run ini dan flag invalidasi hilir bersih (tidak ada stage yang menunggu ulang).
+    await tx.preprocessing_run.update({
+      where: { id: targetRunId },
+      data: {
+        reduced_at: finishedAt,
+        reduced_duration_ms: Math.max(0, finishedAt.getTime() - startedWall),
+        reduced_invalidated_at: null,
+        status: RUN_STATUS.COMPLETED,
+      },
+    });
+  });
+
+  // Response = shape pipeline-status terbaru (kontrak mentor).
+  return assemblePipelineStatus(periode);
+}
+
+// GET /api/preprocessing/reduction/summary — ringkasan hasil reduksi run TERBARU periode.
+// Sumber: count reduced_data + kolom audit run (reduced_at/duration/admin_id) + relasi admin.
+// 404 Bahasa Indonesia bila reduksi belum pernah jalan (tidak ada run ATAU reduced_at kosong).
+async function getReductionSummary(query) {
+  const periode = await resolvePeriode(query.periodeId);
+  const run = await findLatestRun(periode.id);
+
+  if (!run || run.reduced_at == null) {
+    throw new ApiError(404, 'Reduksi belum pernah dijalankan pada periode ini. Jalankan reduksi terlebih dahulu.');
+  }
+
+  const barisDiproses = await prisma.reduced_data.count({ where: { preprocessing_run_id: run.id } });
+  const runAdmin = await prisma.admin.findUnique({ where: { id: run.admin_id }, select: { username: true } });
+
+  return {
+    barisDiproses: toNumber(barisDiproses),
+    kolomDibuang: [...REDUCTION_DROPPED_LABELS],
+    fiturFinal: REDUCTION_FITUR_FINAL,
+    durasiMs: toNumber(run.reduced_duration_ms),
+    adminUsername: runAdmin?.username ?? null,
+    waktu: run.reduced_at,
+  };
+}
+
 module.exports = {
   getPipelineStatus,
   getSourcePreview,
@@ -1004,5 +1101,7 @@ module.exports = {
   deleteTransformOption,
   saveTransformAssignments,
   runTransform,
+  runReduction,
+  getReductionSummary,
   _internals: { STAGE_STATE, RUN_STATUS, buildStages, resolvePeriode, computeImputedValue, ensureKamusSeeded, minMaxNormalizeColumn },
 };

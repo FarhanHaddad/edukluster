@@ -7,6 +7,7 @@ const {
   transformOptionBodySchema,
   transformOptionIdParamSchema,
   transformAssignmentsBodySchema,
+  reductionRunQuerySchema,
 } = require('../validations/preprocessing.validation');
 
 // GET /api/preprocessing/pipeline-status — badge 4 stage + run-meta (FR-D01). Skinny: tanpa logika.
@@ -129,6 +130,29 @@ async function runTransform(req, res, next) {
   }
 }
 
+// POST /api/preprocessing/reduction/run — proyeksi transformed_data -> reduced_data (BE-PRE-4).
+// Gate transformasi SELESAI di service; response sukses = shape pipeline-status terbaru.
+async function runReduction(req, res, next) {
+  try {
+    const query = reductionRunQuerySchema.parse(req.query);
+    const data = await preprocessingService.runReduction(req.admin, query);
+    return res.json({ success: true, message: 'Reduksi berhasil dijalankan', data });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// GET /api/preprocessing/reduction/summary — ringkasan reduksi run terbaru (BE-PRE-4).
+async function getReductionSummary(req, res, next) {
+  try {
+    const query = reductionRunQuerySchema.parse(req.query);
+    const data = await preprocessingService.getReductionSummary(query);
+    return res.json({ success: true, message: 'Berhasil mengambil ringkasan reduksi', data });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getPipelineStatus,
   getSourcePreview,
@@ -140,4 +164,6 @@ module.exports = {
   deleteTransformOption,
   saveTransformAssignments,
   runTransform,
+  runReduction,
+  getReductionSummary,
 };

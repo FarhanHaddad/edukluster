@@ -185,3 +185,37 @@ Authorization: Bearer {{token}}
 # transformed_data vs workbook sheet "Transformation Normalisasi" toleransi ±0.005 min 3 kolom)
 GET {{baseUrl}}/preprocessing/pipeline-status
 Authorization: Bearer {{token}}
+
+### 31. Jalankan Reduksi (BE-PRE-4) — Gate: transformasi SELESAI (else 400 Bahasa Indonesia).
+# PROYEKSI murni transformed_data -> reduced_data: 25 fitur + siswa_periode_id; TANPA komputasi ulang.
+# Kolom identitas (Nama/Kelas/Jenis Kelamin) tidak ikut; NIS tetap sebagai META via join siswa_periode->siswa.
+# Re-run diizinkan: delete+insert satu transaksi. Sukses -> reduced_at + reduced_duration_ms terisi,
+# reduced_invalidated_at DI-CLEAR, preprocessing_run.status = COMPLETED.
+# Response = shape pipeline-status terbaru (reduksi SELESAI, run.status COMPLETED).
+POST {{baseUrl}}/preprocessing/reduction/run
+Authorization: Bearer {{token}}
+
+### 32. Reduksi tanpa transformasi selesai (Wajib 400 Bahasa Indonesia; pakai periode yang belum di-transform)
+POST {{baseUrl}}/preprocessing/reduction/run?periodeId=2
+Authorization: Bearer {{token}}
+
+### 33. Ringkasan Reduksi (Wajib 200; data: { barisDiproses, kolomDibuang:["Nama Siswa","Kelas","Jenis Kelamin"],
+# fiturFinal:"25 numerik + NIS (meta)", durasiMs, adminUsername, waktu }) — sumber: count reduced_data +
+# kolom audit run (reduced_at/duration/admin) + relasi admin. Cocokkan dgn kolom audit #31.
+GET {{baseUrl}}/preprocessing/reduction/summary
+Authorization: Bearer {{token}}
+
+### 34. Ringkasan Reduksi per periode eksplisit
+GET {{baseUrl}}/preprocessing/reduction/summary?periodeId=1
+Authorization: Bearer {{token}}
+
+### 35. Ringkasan Reduksi bila reduksi belum pernah jalan (Wajib 404 Bahasa Indonesia)
+GET {{baseUrl}}/preprocessing/reduction/summary?periodeId=2
+Authorization: Bearer {{token}}
+
+### 36. Verifikasi badge pasca-reduksi (reduksi SELESAI; run.status COMPLETED) + oracle proyeksi:
+# SELECT t.siswa_periode_id, t.mtk_wajib, r.mtk_wajib FROM transformed_data t JOIN reduced_data r
+#   ON r.transformed... (sama run & siswa_periode) -> selisih 0 utk spot-check 3 siswa;
+# reduced_data = 105 baris; TIDAK ada kolom nama/kelas/jenis_kelamin.
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
