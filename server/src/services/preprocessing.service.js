@@ -621,11 +621,375 @@ async function runCleaning(body, adminInfo, query) {
   return assemblePipelineStatus(periode);
 }
 
+// ===== BE-PRE-3 Transformasi: Kamus Bidang per Periode (L2) + Encode + Min-Max.
+// Model dua lapis: L1 standardisasi (category_mapping, per run — selesai di BE-PRE-2);
+// L2 pemetaan nilai standar -> bidang berkode (category_option + category_assignment,
+// per periode). Ruling terkunci: V-3 kode CREATE-ONLY (tanpa endpoint update);
+// V-2 kolom konstan (min=max) saat Min-Max -> 0; V-4 mutasi assignment/hapus bidang
+// saat transformed_data ada -> invalidasi hilir; buat bidang TANPA assignment = TIDAK invalidate.
+
+const { KAMUS_BIDANG } = require('../constants/kamus-bidang');
+
+// Lazy seed kamus: bila kategori option periode = 0 baris, insert seluruh KAMUS_BIDANG
+// dalam SATU transaksi. Idempoten — aman dipanggil berkali-kali (race dua GET perdana:
+// yang menang insert, yang kalah melihat count>0 dan skip).
+async function ensureKamusSeeded(tx, periodeIdBigInt) {
+  const existing = await tx.category_option.count({ where: { periode_id: periodeIdBigInt } });
+  if (existing > 0) return false;
+  const creates = [];
+  for (const [fieldName, entries] of Object.entries(KAMUS_BIDANG)) {
+    for (const { name, code } of entries) {
+      creates.push({ periode_id: periodeIdBigInt, field_name: fieldName, name, code });
+    }
+  }
+  await tx.category_option.createMany({ data: creates });
+  return true;
+}
+
+// Run AKTIF + row cleaned_data-nya (prasyarat semua endpoint transform).
+async function getActiveRunCleanedRows(periodeIdBigInt) {
+  const activeRun = await prisma.preprocessing_run.findFirst({
+    where: { periode_id: periodeIdBigInt, status: RUN_STATUS.ACTIVE },
+    orderBy: [{ started_at: 'desc' }, { id: 'desc' }],
+  });
+  if (!activeRun) return { activeRun: null, cleanedRows: [] };
+  const cleanedRows = await prisma.cleaned_data.findMany({
+    where: { preprocessing_run_id: activeRun.id },
+    orderBy: { siswa_periode_id: 'asc' },
+  });
+  return { activeRun, cleanedRows };
+}
+
+// Distribusi distinct nilai standar per field dari cleaned_data run aktif (list terurut).
+function stdValueCounts(cleanedRows, fieldName) {
+  const counts = new Map();
+  for (const row of cleanedRows) {
+    const v = row[fieldName];
+    if (v === null || v === undefined) continue;
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([standardValue, count]) => ({ standardValue, count }))
+    .sort((a, b) => b.count - a.count || String(a.standardValue).localeCompare(String(b.standardValue)));
+}
+
+// Invalidasi hilir sesuai matriks V-4: DELETE transformed_data + reduced_data run aktif,
+// set transformed_invalidated_at & reduced_invalidated_at = now(). Hanya bila ada
+// transformed_data pada run aktif (mutasi assignment / hapus bidang).
+async function invalidateDownstreamIfTransformed(tx, runIdBigInt, now) {
+  const transformedCount = await tx.transformed_data.count({ where: { preprocessing_run_id: runIdBigInt } });
+  if (transformedCount === 0) return false;
+  await tx.transformed_data.deleteMany({ where: { preprocessing_run_id: runIdBigInt } });
+  await tx.reduced_data.deleteMany({ where: { preprocessing_run_id: runIdBigInt } });
+  await tx.preprocessing_run.update({
+    where: { id: runIdBigInt },
+    data: { transformed_invalidated_at: now, reduced_invalidated_at: now },
+  });
+  return true;
+}
+
+// GET /api/preprocessing/transform/config — kamus bidang (opsi + assignedValues + unmapped).
+// 400 Bahasa Indonesia bila Cleaning belum SELESAI (kontrak; Gate FE disable CTA "Jalankan").
+async function getTransformConfig(query) {
+  const periode = await resolvePeriode(query.periodeId);
+  const { activeRun, cleanedRows } = await getActiveRunCleanedRows(periode.id);
+  if (!activeRun || cleanedRows.length === 0) {
+    throw new ApiError(400, 'Stage cleaning belum selesai dijalankan. Jalankan cleaning terlebih dahulu sebelum konfigurasi transformasi.');
+  }
+
+  // Lazy seed kamus bidang utk periode ini (AC oracle: GET config perdana -> DB terisi).
+  await prisma.$transaction(async (tx) => { await ensureKamusSeeded(tx, periode.id); });
+
+  const [options, assignments] = await Promise.all([
+    prisma.category_option.findMany({
+      where: { periode_id: periode.id },
+      orderBy: [{ field_name: 'asc' }, { code: 'asc' }],
+    }),
+    prisma.category_assignment.findMany({ where: { periode_id: periode.id } }),
+  ]);
+
+  const assignedByFieldOption = new Map(); // `${field}\u0000${optionId}` -> rows
+  const assignedSet = new Set(); // `${field}\u0000${standardValue}`
+  for (const a of assignments) {
+    const key = `${a.field_name}\u0000${toNumber(a.option_id)}`;
+    if (!assignedByFieldOption.has(key)) assignedByFieldOption.set(key, []);
+    assignedByFieldOption.get(key).push(a);
+    assignedSet.add(`${a.field_name}\u0000${a.standard_value}`);
+  }
+
+  const optionsByField = new Map();
+  for (const o of options) {
+    if (!optionsByField.has(o.field_name)) optionsByField.set(o.field_name, []);
+    optionsByField.get(o.field_name).push(o);
+  }
+
+  const fields = NON_AKADEMIK_FIELDS.map((fieldName) => {
+    const fieldOptions = (optionsByField.get(fieldName) ?? []).map((o) => {
+      const assigned = assignedByFieldOption.get(`${fieldName}\u0000${toNumber(o.id)}`) ?? [];
+      const assignedValues = assigned
+        .map((a) => ({ standardValue: a.standard_value }))
+        .sort((x, y) => String(x.standardValue).localeCompare(String(y.standardValue)));
+      return { id: toNumber(o.id), name: o.name, code: o.code, assignedValues };
+    });
+    const unmapped = stdValueCounts(cleanedRows, fieldName)
+      .filter(({ standardValue }) => !assignedSet.has(`${fieldName}\u0000${standardValue}`))
+      .map(({ standardValue, count }) => ({ standardValue, count }));
+    return { fieldName, options: fieldOptions, unmapped };
+  });
+
+  return { fields };
+}
+
+// POST /api/preprocessing/transform/options — buat bidang kamus (CREATE-ONLY, V-3).
+// code default = max(code)+1 per (periode, field) bila tidak dikirim.
+// Duplikat (periode,field,name) ATAU (periode,field,code) -> 422 Bahasa Indonesia.
+// TIDAK invalidate hilir (buat bidang tanpa assignment = no-op bagi data hilir).
+async function createTransformOption(body, query) {
+  const periode = await resolvePeriode(query.periodeId);
+  if (!NON_AKADEMIK_FIELDS.includes(body.fieldName)) {
+    throw new ApiError(400, 'Field tidak termasuk field non-akademik yang dapat ditransformasi.');
+  }
+
+  const option = await prisma.$transaction(async (tx) => {
+    // Seed dulu agar tabrakan dgn kode kamus terdeteksi sebagai duplikat (422), bukan 500.
+    await ensureKamusSeeded(tx, periode.id);
+
+    const dupName = await tx.category_option.findFirst({
+      where: { periode_id: periode.id, field_name: body.fieldName, name: body.name },
+      select: { id: true },
+    });
+    if (dupName) {
+      throw new ApiError(422, `Nama bidang "${body.name}" sudah ada pada field "${body.fieldName}" untuk periode ini.`);
+    }
+
+    let code = body.code;
+    if (code === undefined) {
+      const maxRow = await tx.category_option.aggregate({
+        where: { periode_id: periode.id, field_name: body.fieldName },
+        _max: { code: true },
+      });
+      code = (maxRow._max.code ?? -1) + 1;
+    } else {
+      const dupCode = await tx.category_option.findFirst({
+        where: { periode_id: periode.id, field_name: body.fieldName, code },
+        select: { id: true },
+      });
+      if (dupCode) {
+        throw new ApiError(422, `Kode bidang ${code} sudah dipakai pada field "${body.fieldName}" untuk periode ini.`);
+      }
+    }
+
+    return tx.category_option.create({
+      data: { periode_id: periode.id, field_name: body.fieldName, name: body.name, code },
+    });
+  });
+
+  return { id: toNumber(option.id), fieldName: option.field_name, name: option.name, code: option.code };
+}
+
+// DELETE /api/preprocessing/transform/options/:id — trash bidang; assignment cascade hilang
+// -> nilai standar balik ke unmapped. JIKA transformed_data run aktif ada -> invalidasi V-4.
+async function deleteTransformOption(idParam, query) {
+  const periode = await resolvePeriode(query.periodeId);
+  const now = new Date();
+
+  const result = await prisma.$transaction(async (tx) => {
+    const option = await tx.category_option.findUnique({ where: { id: BigInt(idParam.id) } });
+    if (!option || toNumber(option.periode_id) !== toNumber(periode.id)) {
+      throw new ApiError(404, 'Opsi bidang tidak ditemukan untuk periode ini.');
+    }
+    await tx.category_option.delete({ where: { id: option.id } }); // assignment ON DELETE CASCADE
+    const invalidated = await invalidateDownstreamIfTransformed(tx, periode.id, now);
+    return { fieldName: option.field_name, code: option.code, name: option.name, invalidated };
+  });
+
+  return {
+    id: toNumber(idParam.id),
+    fieldName: result.fieldName,
+    name: result.name,
+    code: result.code,
+    downstreamInvalidated: result.invalidated,
+  };
+}
+
+// POST /api/preprocessing/transform/assignments — upsert L2 (unique periode+field+standard_value).
+// optionId WAJIB milik (periode, field) yg sama. JIKA transformed_data run aktif ada -> V-4.
+async function saveTransformAssignments(body, query) {
+  const periode = await resolvePeriode(query.periodeId);
+  if (!NON_AKADEMIK_FIELDS.includes(body.fieldName)) {
+    throw new ApiError(400, 'Field tidak termasuk field non-akademik yang dapat ditransformasi.');
+  }
+  const now = new Date();
+  // De-dup input (last-wins) agar createMany tidak menabrak unique-nya sendiri.
+  const values = [...new Set(body.standardValues)];
+
+  const result = await prisma.$transaction(async (tx) => {
+    const option = await tx.category_option.findUnique({ where: { id: BigInt(body.optionId) } });
+    if (!option || toNumber(option.periode_id) !== toNumber(periode.id)) {
+      throw new ApiError(404, 'Opsi bidang tidak ditemukan untuk periode ini.');
+    }
+    if (option.field_name !== body.fieldName) {
+      throw new ApiError(422, 'Opsi bidang tidak sesuai field yang diminta.');
+    }
+
+    // Re-map: assignment lama utk nilai-nilai ini diganti (upsert) -> menunjuk option baru.
+    await tx.category_assignment.deleteMany({
+      where: {
+        periode_id: periode.id,
+        field_name: body.fieldName,
+        standard_value: { in: values },
+      },
+    });
+    await tx.category_assignment.createMany({
+      data: values.map((standardValue) => ({
+        periode_id: periode.id,
+        field_name: body.fieldName,
+        standard_value: standardValue,
+        option_id: option.id,
+      })),
+    });
+
+    const invalidated = await invalidateDownstreamIfTransformed(tx, periode.id, now);
+    return { option, invalidated };
+  });
+
+  return {
+    fieldName: body.fieldName,
+    optionId: toNumber(result.option.id),
+    assignedCount: values.length,
+    downstreamInvalidated: result.invalidated,
+  };
+}
+
+// Min-Max satu kolom Decimal lintas seluruh siswa (V-2: kolom konstan min==max -> 0).
+// Presisi penuh via Prisma.Decimal; HALF_UP 4 dp sesuai kolom Decimal(8,4).
+function minMaxNormalizeColumn(values, min, max) {
+  const range = max.sub(min);
+  const out = [];
+  for (const v of values) {
+    if (v === null || v === undefined) { out.push(null); continue; }
+    if (range.isZero()) { out.push(new Prisma.Decimal(0)); continue; } // V-2
+    out.push(v.sub(min).div(range).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP));
+  }
+  return out;
+}
+
+// POST /api/preprocessing/transform/run — Gate + Encode + Min-Max + audit + clear flag hilir.
+// Gate: cleaning SELESAI else 400; unmapped tidak kosong else 422 berisi daftar unmapped.
+// Encode: 7 field non-akademik = cleaned value -> assignment -> code option.
+// Min-Max: 25 kolom (18 akademik + 7 code) Decimal(8,4) LINTAS seluruh siswa run aktif.
+// Re-run: delete+insert transformed_data run aktif dalam satu transaksi; sukses ->
+// clear transformed_invalidated_at DAN reduced_invalidated_at (Reduksi jadi MENUNGGU, bukan RESET).
+async function runTransform(adminInfo, query) {
+  const startedWall = Date.now();
+  const periode = await resolvePeriode(query.periodeId);
+  const periodeIdBigInt = periode.id;
+
+  const { activeRun, cleanedRows } = await getActiveRunCleanedRows(periodeIdBigInt);
+  if (!activeRun || cleanedRows.length === 0) {
+    throw new ApiError(400, 'Stage cleaning belum selesai dijalankan. Jalankan cleaning terlebih dahulu sebelum transformasi.');
+  }
+
+  // Gate unmapped: setiap distinct nilai standar wajib punya category_assignment.
+  const assignments = await prisma.category_assignment.findMany({ where: { periode_id: periodeIdBigInt } });
+  const assignedSet = new Set(assignments.map((a) => `${a.field_name}\u0000${a.standard_value}`));
+  const unmappedList = [];
+  for (const fieldName of NON_AKADEMIK_FIELDS) {
+    for (const { standardValue, count } of stdValueCounts(cleanedRows, fieldName)) {
+      if (!assignedSet.has(`${fieldName}\u0000${standardValue}`)) {
+        unmappedList.push({ fieldName, standardValue, count });
+      }
+    }
+  }
+  if (unmappedList.length > 0) {
+    const err = new ApiError(422, 'Transformasi tidak dapat dijalankan: masih ada nilai standar yang belum dipetakan ke bidang.');
+    err.payload = { unmapped: unmappedList };
+    throw err;
+  }
+
+  const targetRunId = activeRun.id;
+  const finishedAt = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    // Peta lookup: field+standard_value -> code option (include opsi utk validasi kepemilikan).
+    const rowsWithOption = await tx.category_assignment.findMany({
+      where: { periode_id: periodeIdBigInt },
+      include: { option: { select: { code: true, periode_id: true, field_name: true } } },
+    });
+    const codeByFieldStd = new Map();
+    for (const a of rowsWithOption) {
+      if (!a.option || toNumber(a.option.periode_id) !== toNumber(periodeIdBigInt)) continue;
+      if (a.field_name !== a.option.field_name) continue; // guard integritas L2
+      codeByFieldStd.set(`${a.field_name}\u0000${a.standard_value}`, a.option.code);
+    }
+
+    // (1) Encode: bangun row mentah per siswa — 18 akademik (Decimal cleaned) + 7 code.
+    const encodedRows = cleanedRows.map((row) => {
+      const out = { preprocessing_run_id: targetRunId, siswa_periode_id: row.siswa_periode_id };
+      for (const field of NUMERIC_FIELDS) out[field] = row[field];
+      for (const field of NON_AKADEMIK_FIELDS) {
+        const std = row[field];
+        const code = std === null || std === undefined ? undefined : codeByFieldStd.get(`${field}\u0000${std}`);
+        out[field] = code === undefined ? null : new Prisma.Decimal(code);
+      }
+      return out;
+    });
+
+    // (2) Min-Max per kolom lintas SELURUH siswa (25 kolom), lalu timpa hasil normalisasi.
+    const ALL_COLUMNS = [...NUMERIC_FIELDS, ...NON_AKADEMIK_FIELDS];
+    for (const field of ALL_COLUMNS) {
+      const present = [];
+      for (const r of encodedRows) {
+        const v = r[field];
+        if (v !== null && v !== undefined) present.push(v);
+      }
+      if (present.length === 0) {
+        for (const r of encodedRows) r[field] = null;
+        continue;
+      }
+      let min = present[0];
+      let max = present[0];
+      for (const v of present) {
+        if (v.cmp(min) < 0) min = v;
+        if (v.cmp(max) > 0) max = v;
+      }
+      const norm = minMaxNormalizeColumn(encodedRows.map((r) => r[field]), min, max);
+      encodedRows.forEach((r, i) => { r[field] = norm[i]; });
+    }
+
+    // (3) Re-run diizinkan: delete+insert transformed_data run aktif dalam transaksi sama.
+    await tx.transformed_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+    if (encodedRows.length > 0) {
+      await tx.transformed_data.createMany({ data: encodedRows });
+    }
+
+    // (4) Audit + derivasi badge: clear flag invalidasi MILIK SENDIRI DAN semua hilir
+    // (reduced_invalidated_at ikut dibersihkan -> Reduksi MENUNGGU, bukan RESET).
+    await tx.preprocessing_run.update({
+      where: { id: targetRunId },
+      data: {
+        transformed_at: finishedAt,
+        transformed_duration_ms: Math.max(0, finishedAt.getTime() - startedWall),
+        transformed_invalidated_at: null,
+        reduced_invalidated_at: null,
+      },
+    });
+  });
+
+  // Response = shape pipeline-status terbaru (kontrak mentor).
+  return assemblePipelineStatus(periode);
+}
+
 module.exports = {
   getPipelineStatus,
   getSourcePreview,
   runIntegration,
   getCleaningConfig,
   runCleaning,
-  _internals: { STAGE_STATE, RUN_STATUS, buildStages, resolvePeriode, computeImputedValue },
+  getTransformConfig,
+  createTransformOption,
+  deleteTransformOption,
+  saveTransformAssignments,
+  runTransform,
+  _internals: { STAGE_STATE, RUN_STATUS, buildStages, resolvePeriode, computeImputedValue, ensureKamusSeeded, minMaxNormalizeColumn },
 };
