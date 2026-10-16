@@ -71,6 +71,11 @@ const transformAssignmentsBodySchema = z.object({
 // POST /preprocessing/transform/run ?periodeId=<optional int> — query saja (tanpa body).
 const transformRunQuerySchema = pipelineStatusQuerySchema;
 
+// ===== BE-PRE-4 Reduksi.
+// POST /preprocessing/reduction/run & GET /preprocessing/reduction/summary
+// ?periodeId=<optional int> — query saja (tanpa body), sama dgn pipeline-status.
+const reductionRunQuerySchema = pipelineStatusQuerySchema;
+
 module.exports = {
   pipelineStatusQuerySchema,
   sourcePreviewQuerySchema,
@@ -80,4 +85,5 @@ module.exports = {
   transformOptionIdParamSchema,
   transformAssignmentsBodySchema,
   transformRunQuerySchema,
+  reductionRunQuerySchema,
 };
