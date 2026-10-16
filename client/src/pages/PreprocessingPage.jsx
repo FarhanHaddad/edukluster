@@ -8,24 +8,11 @@ import InfoBanner from '../components/domain/InfoBanner';
 import Button from '../components/ui/Button';
 import PreprocessingTabBar from '../components/domain/preprocessing/PreprocessingTabBar';
 import IntegrasiTab from '../components/domain/preprocessing/IntegrasiTab';
+import CleaningTab from '../components/domain/preprocessing/CleaningTab';
+import TransformasiTab from '../components/domain/preprocessing/TransformasiTab';
+import ReduksiTab from '../components/domain/preprocessing/ReduksiTab';
 import PreprocessingEmptyState from '../components/domain/preprocessing/PreprocessingEmptyState';
 import Toast from '../components/domain/siswa/Toast';
-import { Lock } from 'lucide-react';
-
-const STAGE_TITLES = {
-  cleaning: {
-    title: 'Cleaning Data',
-    desc: 'Menangani missing value pada data akademik dan menyeimbangkan variasi penulisan kategori non-akademik.',
-  },
-  transformasi: {
-    title: 'Transformasi Data',
-    desc: 'Mengubah nilai non-akademik menjadi skala numerik dan melakukan normalisasi Min-Max.',
-  },
-  reduksi: {
-    title: 'Reduksi Data',
-    desc: 'Memilih dan membobot atribut relevan untuk mempersiapkan dataset analisis K-Means.',
-  },
-};
 
 function getDefaultTab(stages) {
   if (!stages) return 'integrasi';
@@ -57,7 +44,7 @@ export default function PreprocessingPage() {
 
   const [activeTab, setActiveTab] = useState('integrasi');
   const [hasManuallySelectedTab, setHasManuallySelectedTab] = useState(false);
-  const [toast, setToast] = useState({ open: false, message: '', tone: 'success' });
+  const [toast, setToast] = useState({ open: false, message: '', title: '', description: '', tone: 'success' });
 
   const stages = pipelineStatus?.run?.stages ?? {
     integrasi: { state: 'MENUNGGU' },
@@ -83,6 +70,8 @@ export default function PreprocessingPage() {
       setToast({
         open: true,
         message: 'Integrasi Data berhasil dijalankan.',
+        title: '',
+        description: '',
         tone: 'success',
       });
       refetch();
@@ -91,6 +80,8 @@ export default function PreprocessingPage() {
       setToast({
         open: true,
         message: msg,
+        title: '',
+        description: '',
         tone: 'danger',
       });
     }
@@ -143,36 +134,44 @@ export default function PreprocessingPage() {
               onRunIntegration={handleRunIntegration}
               isRunning={runMutation.isPending}
             />
-          ) : (
-            <div className="pt-6 space-y-6">
-              <div>
-                <h2 className="text-base font-semibold leading-6 text-ink">
-                  {STAGE_TITLES[activeTab]?.title}
-                </h2>
-                <p className="mt-1 text-sm text-muted">
-                  {STAGE_TITLES[activeTab]?.desc}
-                </p>
-              </div>
-
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-line bg-page p-12 text-center">
-                <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-brand-tint text-brand">
-                  <Lock size={20} aria-hidden="true" />
-                </div>
-                <h3 className="text-sm font-semibold text-ink">
-                  Tahap Berikutnya
-                </h3>
-                <p className="mt-1 max-w-sm text-xs text-muted">
-                  Konfigurasi dan eksekusi untuk {STAGE_TITLES[activeTab]?.title} akan tersedia pada pembaruan modul tahap berikutnya.
-                </p>
-              </div>
-            </div>
-          )}
+          ) : activeTab === 'cleaning' ? (
+            <CleaningTab
+              periodeId={activePeriode?.id}
+              stageData={stages.cleaning}
+              integrasiState={stages.integrasi?.state}
+              siswaCount={siswaCount}
+              onSuccess={() => handleSelectTab('transformasi')}
+              refetchPipeline={refetch}
+              setToast={setToast}
+            />
+          ) : activeTab === 'transformasi' ? (
+            <TransformasiTab
+              periodeId={activePeriode?.id}
+              stageData={stages.transformasi}
+              cleaningState={stages.cleaning?.state}
+              siswaCount={siswaCount}
+              onSuccess={() => handleSelectTab('reduksi')}
+              refetchPipeline={refetch}
+              setToast={setToast}
+            />
+          ) : activeTab === 'reduksi' ? (
+            <ReduksiTab
+              periodeId={activePeriode?.id}
+              stageData={stages.reduksi}
+              transformasiState={stages.transformasi?.state}
+              siswaCount={siswaCount}
+              refetchPipeline={refetch}
+              setToast={setToast}
+            />
+          ) : null}
         </Card>
       )}
 
       <Toast
         open={toast.open}
         message={toast.message}
+        title={toast.title}
+        description={toast.description}
         tone={toast.tone}
         onClose={() => setToast((prev) => ({ ...prev, open: false }))}
       />

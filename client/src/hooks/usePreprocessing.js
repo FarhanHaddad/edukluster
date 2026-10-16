@@ -61,3 +61,178 @@ export function useRunIntegration() {
     },
   });
 }
+
+// GET /preprocessing/cleaning/config
+async function fetchCleaningConfig(periodeId) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const res = await api.get('/preprocessing/cleaning/config', { params });
+  return res.data?.data ?? null;
+}
+
+export function useCleaningConfig(periodeId, options = {}) {
+  return useQuery({
+    queryKey: ['cleaning-config', periodeId ?? 'active'],
+    queryFn: () => fetchCleaningConfig(periodeId),
+    staleTime: 10_000,
+    ...options,
+  });
+}
+
+// POST /preprocessing/cleaning
+async function runCleaning({ periodeId, imputationMethod, mappings }) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const payload = { imputationMethod, mappings };
+  const res = await api.post('/preprocessing/cleaning', payload, { params });
+  return res.data?.data ?? res.data;
+}
+
+export function useRunCleaning() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: runCleaning,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['preprocessing-status'] });
+      queryClient.invalidateQueries({ queryKey: ['cleaning-config'] });
+      queryClient.invalidateQueries({ queryKey: ['source-preview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}
+
+// GET /preprocessing/transform/config
+async function fetchTransformConfig(periodeId) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const res = await api.get('/preprocessing/transform/config', { params });
+  return res.data?.data ?? null;
+}
+
+export function useTransformConfig(periodeId, options = {}) {
+  return useQuery({
+    queryKey: ['transform-config', periodeId ?? 'active'],
+    queryFn: () => fetchTransformConfig(periodeId),
+    staleTime: 10_000,
+    ...options,
+  });
+}
+
+// POST /preprocessing/transform/options
+async function createTransformOption({ periodeId, fieldName, name, code }) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const payload = { fieldName, name };
+  if (code !== undefined && code !== null && code !== '') {
+    payload.code = Number(code);
+  }
+  const res = await api.post('/preprocessing/transform/options', payload, { params });
+  return res.data?.data ?? res.data;
+}
+
+export function useCreateTransformOption() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createTransformOption,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transform-config'] });
+    },
+  });
+}
+
+// DELETE /preprocessing/transform/options/:id
+async function deleteTransformOption({ id, periodeId }) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const res = await api.delete(`/preprocessing/transform/options/${id}`, { params });
+  return res.data?.data ?? res.data;
+}
+
+export function useDeleteTransformOption() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteTransformOption,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transform-config'] });
+      queryClient.invalidateQueries({ queryKey: ['preprocessing-status'] });
+    },
+  });
+}
+
+// POST /preprocessing/transform/assignments
+async function saveTransformAssignments({ periodeId, fieldName, optionId, standardValues }) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const payload = { fieldName, optionId, standardValues };
+  const res = await api.post('/preprocessing/transform/assignments', payload, { params });
+  return res.data?.data ?? res.data;
+}
+
+export function useSaveTransformAssignments() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: saveTransformAssignments,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transform-config'] });
+      queryClient.invalidateQueries({ queryKey: ['preprocessing-status'] });
+    },
+  });
+}
+
+// POST /preprocessing/transform/run
+async function runTransform(periodeId) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const res = await api.post('/preprocessing/transform/run', {}, { params });
+  return res.data?.data ?? res.data;
+}
+
+export function useRunTransform() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: runTransform,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['preprocessing-status'] });
+      queryClient.invalidateQueries({ queryKey: ['transform-config'] });
+      queryClient.invalidateQueries({ queryKey: ['source-preview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}
+
+// GET /preprocessing/reduction/summary
+async function fetchReductionSummary(periodeId) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const res = await api.get('/preprocessing/reduction/summary', { params });
+  return res.data?.data ?? null;
+}
+
+export function useReductionSummary(periodeId, options = {}) {
+  return useQuery({
+    queryKey: ['reduction-summary', periodeId ?? 'active'],
+    queryFn: () => fetchReductionSummary(periodeId),
+    staleTime: 10_000,
+    ...options,
+  });
+}
+
+// POST /preprocessing/reduction/run
+async function runReduction(periodeId) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const res = await api.post('/preprocessing/reduction/run', {}, { params });
+  return res.data?.data ?? res.data;
+}
+
+export function useRunReduction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: runReduction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['preprocessing-status'] });
+      queryClient.invalidateQueries({ queryKey: ['reduction-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}
