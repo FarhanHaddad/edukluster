@@ -68,11 +68,11 @@ export default function SourcePreviewTable({
               <th className="sticky left-0 z-20 w-24 bg-page px-4 py-3 shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
                 NIS
               </th>
-              <th className="sticky left-[96px] z-20 min-w-[180px] bg-page px-4 py-3 shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
+              <th className="sticky left-24 z-20 min-w-45 bg-page px-4 py-3 shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
                 Nama Siswa
               </th>
               {columns.map((col) => (
-                <th key={col.key} className="whitespace-nowrap px-4 py-3 min-w-[100px]">
+                <th key={col.key} className="whitespace-nowrap px-4 py-3 min-w-25">
                   {col.label}
                 </th>
               ))}
@@ -97,7 +97,7 @@ export default function SourcePreviewTable({
                   <td className="sticky left-0 z-10 whitespace-nowrap bg-card px-4 py-3 font-mono text-sm font-medium text-ink shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
                     {row.nis || '-'}
                   </td>
-                  <td className="sticky left-[96px] z-10 whitespace-nowrap bg-card px-4 py-3 text-sm font-medium text-ink shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
+                  <td className="sticky left-24 z-10 whitespace-nowrap bg-card px-4 py-3 text-sm font-medium text-ink shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
                     {row.nama || '-'}
                   </td>
                   {columns.map((col) => {
