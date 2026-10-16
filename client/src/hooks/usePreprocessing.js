@@ -199,3 +199,40 @@ export function useRunTransform() {
     },
   });
 }
+
+// GET /preprocessing/reduction/summary
+async function fetchReductionSummary(periodeId) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const res = await api.get('/preprocessing/reduction/summary', { params });
+  return res.data?.data ?? null;
+}
+
+export function useReductionSummary(periodeId, options = {}) {
+  return useQuery({
+    queryKey: ['reduction-summary', periodeId ?? 'active'],
+    queryFn: () => fetchReductionSummary(periodeId),
+    staleTime: 10_000,
+    ...options,
+  });
+}
+
+// POST /preprocessing/reduction/run
+async function runReduction(periodeId) {
+  const params = {};
+  if (periodeId) params.periodeId = periodeId;
+  const res = await api.post('/preprocessing/reduction/run', {}, { params });
+  return res.data?.data ?? res.data;
+}
+
+export function useRunReduction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: runReduction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['preprocessing-status'] });
+      queryClient.invalidateQueries({ queryKey: ['reduction-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    },
+  });
+}
