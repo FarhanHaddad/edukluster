@@ -39,4 +39,13 @@ router.post('/transform/assignments', preprocessingController.saveTransformAssig
 // POST /api/preprocessing/transform/run — gate cleaning+unmapped; encode 7 field; min-max 25 kolom; clear flag hilir.
 router.post('/transform/run', preprocessingController.runTransform);
 
+// ===== BE-PRE-4 Reduksi (FR-D04).
+
+// POST /api/preprocessing/reduction/run — proyeksi murni transformed_data -> reduced_data (25 fitur + FK);
+// gate transformasi SELESAI else 400; re-run delete+insert satu transaksi; run.status -> COMPLETED.
+router.post('/reduction/run', preprocessingController.runReduction);
+
+// GET /api/preprocessing/reduction/summary — ringkasan reduksi run terbaru; 404 bila belum pernah jalan.
+router.get('/reduction/summary', preprocessingController.getReductionSummary);
+
 module.exports = router;
