@@ -32,3 +32,11 @@ export function formatTimestamp(iso) {
   if (Number.isNaN(d.getTime())) return '-';
   return `${TANGGAL_FMT.format(d)} \u2022 ${JAM_FMT.format(d)}`;
 }
+
+// ISO -> "12 Okt 2025, 11:20".
+export function formatWaktu(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '-';
+  return `${TANGGAL_FMT.format(d)}, ${JAM_FMT.format(d)}`;
+}
