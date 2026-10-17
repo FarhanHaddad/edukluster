@@ -84,7 +84,7 @@ export default function SourcePreviewTable({
               <th className="sticky left-0 z-30 w-[110px] min-w-[110px] max-w-[110px] bg-page px-4 py-3 border-b border-r border-line">
                 NIS
               </th>
-              <th className="sticky left-[110px] z-30 w-44 min-w-44 max-w-44 bg-page px-4 py-3 border-b border-r border-line shadow-[4px_0_8px_-2px_var(--tw-shadow-color)] shadow-line">
+              <th className="sticky left-[110px] z-30 w-44 min-w-44 max-w-44 bg-page px-4 py-3 border-b border-r border-line">
                 Nama Siswa
               </th>
               {columns.map((col) => (
@@ -108,12 +108,11 @@ export default function SourcePreviewTable({
               pageRows.map((row, idx) => (
                 <tr
                   key={row.nis || idx}
-                  className="group transition-colors"
                 >
-                  <td className="sticky left-0 z-20 w-[110px] min-w-[110px] max-w-[110px] bg-card group-hover:bg-line/30 whitespace-nowrap px-4 py-3 font-mono text-sm font-medium text-ink border-b border-r border-line">
+                  <td className="sticky left-0 z-20 w-[110px] min-w-[110px] max-w-[110px] bg-card whitespace-nowrap px-4 py-3 font-mono text-sm font-medium text-ink border-b border-r border-line">
                     {row.nis || "-"}
                   </td>
-                  <td className="sticky left-[110px] z-20 w-44 min-w-44 max-w-44 bg-card group-hover:bg-line/30 whitespace-nowrap px-4 py-3 text-sm font-medium text-ink border-b border-r border-line shadow-[4px_0_8px_-2px_var(--tw-shadow-color)] shadow-line truncate" title={row.nama || "-"}>
+                  <td className="sticky left-[110px] z-20 w-44 min-w-44 max-w-44 bg-card whitespace-nowrap px-4 py-3 text-sm font-medium text-ink border-b border-r border-line truncate">
                     {row.nama || "-"}
                   </td>
                   {columns.map((col) => {
@@ -137,10 +136,9 @@ export default function SourcePreviewTable({
                     return (
                       <td
                         key={col.key}
-                        className={`bg-card group-hover:bg-line/30 whitespace-nowrap px-4 py-3 text-sm border-b border-r border-line/40 truncate ${
+                        className={`bg-card whitespace-nowrap px-4 py-3 text-sm border-b border-r border-line/40 truncate ${
                           isEmpty ? "font-semibold text-warning" : isAkademik ? "font-mono text-ink" : "text-ink"
                         }`}
-                        title={String(displayVal)}
                       >
                         {displayVal}
                       </td>
