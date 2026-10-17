@@ -25,6 +25,10 @@ client/src/components/domain/PlaceholderPage.jsx
 client/src/components/domain/RunCard.jsx
 client/src/components/domain/StatCard.jsx
 client/src/components/domain/StepCard.jsx
+client/src/components/domain/preprocessing/IntegrasiTab.jsx
+client/src/components/domain/preprocessing/PreprocessingEmptyState.jsx
+client/src/components/domain/preprocessing/PreprocessingTabBar.jsx
+client/src/components/domain/preprocessing/SourcePreviewTable.jsx
 client/src/components/domain/siswa/DeleteSiswaDialog.jsx
 client/src/components/domain/siswa/ImportExcelWizard.jsx
 client/src/components/domain/siswa/SiswaDetailModal.jsx
@@ -66,6 +70,7 @@ client/src/hooks/useCreatePeriode.js
 client/src/hooks/useDashboardSummary.js
 client/src/hooks/useDeleteAdmin.js
 client/src/hooks/usePeriodes.js
+client/src/hooks/usePreprocessing.js
 client/src/hooks/useSiswa.js
 client/src/hooks/useTheme.js
 client/src/hooks/useToggleAdminStatus.js
@@ -81,6 +86,7 @@ client/src/pages/AdminPage.jsx
 client/src/pages/DashboardPage.jsx
 client/src/pages/LoginPage.jsx
 client/src/pages/PeriodePage.jsx
+client/src/pages/PreprocessingPage.jsx
 client/src/pages/SiswaEditPage.jsx
 client/src/pages/SiswaPage.jsx
 client/vite.config.js
@@ -99,12 +105,14 @@ server/http/admin.rest
 server/http/auth.rest
 server/http/dashboard.rest
 server/http/periode.rest
+server/http/preprocessing.rest
 server/http/siswa.rest
 server/package.json
 server/prisma.config.ts
 server/prisma/migrations/20261001000000_init_erd/migration.sql
 server/prisma/migrations/20261002071019_add_admin_status/migration.sql
 server/prisma/migrations/20261007153912_remove_admin_email/migration.sql
+server/prisma/migrations/20261015134835_add_preprocessing_config/migration.sql
 server/prisma/migrations/migration_lock.toml
 server/prisma/schema-prisma.txt
 server/prisma/schema.prisma
@@ -115,6 +123,7 @@ server/src/controllers/auth.controller.js
 server/src/controllers/dashboard.controller.js
 server/src/controllers/excelImport.controller.js
 server/src/controllers/periode.controller.js
+server/src/controllers/preprocessing.controller.js
 server/src/controllers/siswa.controller.js
 server/src/index.js
 server/src/lib/prisma.js
@@ -126,6 +135,7 @@ server/src/routes/auth.routes.js
 server/src/routes/dashboard.routes.js
 server/src/routes/index.js
 server/src/routes/periode.routes.js
+server/src/routes/preprocessing.routes.js
 server/src/routes/siswa.routes.js
 server/src/services/admin.service.js
 server/src/services/auth.service.js
@@ -134,12 +144,14 @@ server/src/services/excelConfirm.service.js
 server/src/services/excelImport.service.js
 server/src/services/excelTemplate.service.js
 server/src/services/periode.service.js
+server/src/services/preprocessing.service.js
 server/src/services/siswa.service.js
 server/src/utils/ApiError.js
 server/src/utils/excelConstants.js
 server/src/validations/admin.validation.js
 server/src/validations/auth.validation.js
 server/src/validations/periode.validation.js
+server/src/validations/preprocessing.validation.js
 server/src/validations/siswa.validation.js
 shared/package.json
 
