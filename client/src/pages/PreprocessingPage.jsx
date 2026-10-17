@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import useDashboardSummary from '../hooks/useDashboardSummary';
 import { usePreprocessingStatus, useRunIntegration } from '../hooks/usePreprocessing';
 import PageHeader from '../components/domain/PageHeader';
@@ -13,20 +13,6 @@ import TransformasiTab from '../components/domain/preprocessing/TransformasiTab'
 import ReduksiTab from '../components/domain/preprocessing/ReduksiTab';
 import PreprocessingEmptyState from '../components/domain/preprocessing/PreprocessingEmptyState';
 import Toast from '../components/domain/siswa/Toast';
-
-function getDefaultTab(stages) {
-  if (!stages) return 'integrasi';
-  const order = ['integrasi', 'cleaning', 'transformasi', 'reduksi'];
-  for (const key of order) {
-    const st = stages[key]?.state;
-    if (st === 'MENUNGGU' || st === 'RESET') {
-      return key;
-    }
-  }
-  const allSelesai = order.every((key) => stages[key]?.state === 'SELESAI');
-  if (allSelesai) return 'reduksi';
-  return 'integrasi';
-}
 
 export default function PreprocessingPage() {
   const { data: summary } = useDashboardSummary();
@@ -43,7 +29,6 @@ export default function PreprocessingPage() {
   const runMutation = useRunIntegration();
 
   const [activeTab, setActiveTab] = useState('integrasi');
-  const [hasManuallySelectedTab, setHasManuallySelectedTab] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', title: '', description: '', tone: 'success' });
 
   const stages = pipelineStatus?.run?.stages ?? {
@@ -53,14 +38,7 @@ export default function PreprocessingPage() {
     reduksi: { state: 'TERKUNCI' },
   };
 
-  useEffect(() => {
-    if (!hasManuallySelectedTab && pipelineStatus) {
-      setActiveTab(getDefaultTab(stages));
-    }
-  }, [pipelineStatus, hasManuallySelectedTab]);
-
   const handleSelectTab = (tabId) => {
-    setHasManuallySelectedTab(true);
     setActiveTab(tabId);
   };
 
