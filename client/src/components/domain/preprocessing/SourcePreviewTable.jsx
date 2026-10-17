@@ -71,24 +71,24 @@ export default function SourcePreviewTable({
   return (
     <div className="space-y-3">
       <div ref={containerRef} className="w-full overflow-x-auto rounded-lg border border-line bg-card shadow-inner">
-        <table className="w-full table-fixed border-collapse text-left text-sm min-w-max">
+        <table className="w-full table-fixed border-separate border-spacing-0 text-left text-sm min-w-max">
           <colgroup>
             <col className="w-[110px]" />
-            <col className="w-[240px]" />
+            <col className="w-44" />
             {columns.map((col) => (
               <col key={col.key} className="w-[140px]" />
             ))}
           </colgroup>
           <thead>
-            <tr className="border-b border-line bg-page text-xs font-semibold uppercase tracking-wider text-muted">
-              <th className="sticky left-0 z-30 bg-page px-4 py-3 border-r border-line/50">
+            <tr className="bg-page text-xs font-semibold uppercase tracking-wider text-muted">
+              <th className="sticky left-0 z-30 w-[110px] min-w-[110px] max-w-[110px] bg-page px-4 py-3 border-b border-r border-line">
                 NIS
               </th>
-              <th className="sticky left-[110px] z-30 bg-page px-4 py-3 border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.12)]">
+              <th className="sticky left-[110px] z-30 w-44 min-w-44 max-w-44 bg-page px-4 py-3 border-b border-r border-line">
                 Nama Siswa
               </th>
               {columns.map((col) => (
-                <th key={col.key} className="whitespace-nowrap px-4 py-3 border-r border-line/40">
+                <th key={col.key} className="bg-page whitespace-nowrap px-4 py-3 border-b border-r border-line/40">
                   {col.label}
                 </th>
               ))}
@@ -99,7 +99,7 @@ export default function SourcePreviewTable({
               <tr>
                 <td
                   colSpan={columns.length + 2}
-                  className="px-4 py-8 text-center text-sm text-muted bg-card"
+                  className="px-4 py-8 text-center text-sm text-muted bg-card border-b border-line"
                 >
                   Tidak ada data pratinjau sumber.
                 </td>
@@ -108,12 +108,11 @@ export default function SourcePreviewTable({
               pageRows.map((row, idx) => (
                 <tr
                   key={row.nis || idx}
-                  className="transition-colors hover:bg-line/40"
                 >
-                  <td className="sticky left-0 z-20 whitespace-nowrap bg-card px-4 py-3 font-mono text-sm font-medium text-ink border-r border-line/50">
+                  <td className="sticky left-0 z-20 w-[110px] min-w-[110px] max-w-[110px] bg-card whitespace-nowrap px-4 py-3 font-mono text-sm font-medium text-ink border-b border-r border-line">
                     {row.nis || "-"}
                   </td>
-                  <td className="sticky left-[110px] z-20 whitespace-nowrap bg-card px-4 py-3 text-sm font-medium text-ink border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.12)] truncate" title={row.nama || "-"}>
+                  <td className="sticky left-[110px] z-20 w-44 min-w-44 max-w-44 bg-card whitespace-nowrap px-4 py-3 text-sm font-medium text-ink border-b border-r border-line truncate">
                     {row.nama || "-"}
                   </td>
                   {columns.map((col) => {
@@ -137,10 +136,9 @@ export default function SourcePreviewTable({
                     return (
                       <td
                         key={col.key}
-                        className={`whitespace-nowrap px-4 py-3 text-sm border-r border-line/40 truncate ${
+                        className={`bg-card whitespace-nowrap px-4 py-3 text-sm border-b border-r border-line/40 truncate ${
                           isEmpty ? "font-semibold text-warning" : isAkademik ? "font-mono text-ink" : "text-ink"
                         }`}
-                        title={String(displayVal)}
                       >
                         {displayVal}
                       </td>
