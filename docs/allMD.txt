@@ -3,7 +3,6 @@
 LICENSE
 README.md
 client/.env.example
-client/AllCode.txt
 client/index.html
 client/package.json
 client/src/App.jsx
@@ -25,10 +24,18 @@ client/src/components/domain/PlaceholderPage.jsx
 client/src/components/domain/RunCard.jsx
 client/src/components/domain/StatCard.jsx
 client/src/components/domain/StepCard.jsx
+client/src/components/domain/preprocessing/BidangAccordion.jsx
+client/src/components/domain/preprocessing/CategoryMappingCard.jsx
+client/src/components/domain/preprocessing/CleaningTab.jsx
+client/src/components/domain/preprocessing/ImputationForm.jsx
 client/src/components/domain/preprocessing/IntegrasiTab.jsx
+client/src/components/domain/preprocessing/NormalisasiInfo.jsx
 client/src/components/domain/preprocessing/PreprocessingEmptyState.jsx
 client/src/components/domain/preprocessing/PreprocessingTabBar.jsx
+client/src/components/domain/preprocessing/ReduksiTab.jsx
 client/src/components/domain/preprocessing/SourcePreviewTable.jsx
+client/src/components/domain/preprocessing/TransformasiTab.jsx
+client/src/components/domain/preprocessing/UnmappedBanner.jsx
 client/src/components/domain/siswa/DeleteSiswaDialog.jsx
 client/src/components/domain/siswa/ImportExcelWizard.jsx
 client/src/components/domain/siswa/SiswaDetailModal.jsx
@@ -99,7 +106,6 @@ package-lock.json
 package.json
 server/.env.example
 server/.gitignore
-server/allCodePeriode.txt
 server/http/ALLREST.txt
 server/http/admin.rest
 server/http/auth.rest
@@ -118,6 +124,7 @@ server/prisma/schema-prisma.txt
 server/prisma/schema.prisma
 server/prisma/seed.js
 server/src/config/env.js
+server/src/constants/kamus-bidang.js
 server/src/controllers/admin.controller.js
 server/src/controllers/auth.controller.js
 server/src/controllers/dashboard.controller.js
