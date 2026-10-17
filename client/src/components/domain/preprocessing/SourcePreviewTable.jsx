@@ -1,16 +1,17 @@
-import { MAPPEL } from '../../../lib/constants';
-import Button from '../../ui/Button';
-import InfoBanner from '../InfoBanner';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRef, useEffect } from "react";
+import { MAPPEL } from "../../../lib/constants";
+import Button from "../../ui/Button";
+import InfoBanner from "../InfoBanner";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const NON_AKADEMIK_COLS = [
-  { key: 'ekstrakurikuler', label: 'Ekstrakurikuler' },
-  { key: 'prestasi', label: 'Prestasi' },
-  { key: 'kemampuan', label: 'Kemampuan' },
-  { key: 'organisasi', label: 'Organisasi' },
-  { key: 'kursus', label: 'Kursus' },
-  { key: 'jurusan_1', label: 'Jurusan 1' },
-  { key: 'jurusan_2', label: 'Jurusan 2' },
+  { key: "ekstrakurikuler", label: "Ekstrakurikuler" },
+  { key: "prestasi", label: "Prestasi" },
+  { key: "kemampuan", label: "Kemampuan" },
+  { key: "organisasi", label: "Organisasi" },
+  { key: "kursus", label: "Kursus" },
+  { key: "jurusan_1", label: "Jurusan 1" },
+  { key: "jurusan_2", label: "Jurusan 2" },
 ];
 
 export default function SourcePreviewTable({
@@ -22,6 +23,14 @@ export default function SourcePreviewTable({
   page = 1,
   onPageChange,
 }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollLeft = 0;
+    }
+  }, [jenis, page]);
+
   if (isLoading) {
     return (
       <div className="flex h-48 items-center justify-center rounded-lg border border-line bg-card">
@@ -48,8 +57,8 @@ export default function SourcePreviewTable({
     );
   }
 
-  const columns = jenis === 'non_akademik' ? NON_AKADEMIK_COLS : MAPPEL;
-  const isAkademik = jenis !== 'non_akademik';
+  const columns = jenis === "non_akademik" ? NON_AKADEMIK_COLS : MAPPEL;
+  const isAkademik = jenis !== "non_akademik";
 
   const limit = 10;
   const total = rows.length;
@@ -61,18 +70,25 @@ export default function SourcePreviewTable({
 
   return (
     <div className="space-y-3">
-      <div className="w-full overflow-x-auto rounded-lg border border-line bg-card">
-        <table className="w-full border-collapse text-left text-sm">
+      <div ref={containerRef} className="w-full overflow-x-auto rounded-lg border border-line bg-card shadow-inner">
+        <table className="w-full table-fixed border-collapse text-left text-sm min-w-max">
+          <colgroup>
+            <col className="w-[110px]" />
+            <col className="w-[240px]" />
+            {columns.map((col) => (
+              <col key={col.key} className="w-[140px]" />
+            ))}
+          </colgroup>
           <thead>
             <tr className="border-b border-line bg-page text-xs font-semibold uppercase tracking-wider text-muted">
-              <th className="sticky left-0 z-20 w-24 bg-page px-4 py-3 shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
+              <th className="sticky left-0 z-30 bg-page px-4 py-3 border-r border-line/50">
                 NIS
               </th>
-              <th className="sticky left-24 z-20 min-w-45 bg-page px-4 py-3 shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
+              <th className="sticky left-[110px] z-30 bg-page px-4 py-3 border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.12)]">
                 Nama Siswa
               </th>
               {columns.map((col) => (
-                <th key={col.key} className="whitespace-nowrap px-4 py-3 min-w-25">
+                <th key={col.key} className="whitespace-nowrap px-4 py-3 border-r border-line/40">
                   {col.label}
                 </th>
               ))}
@@ -83,7 +99,7 @@ export default function SourcePreviewTable({
               <tr>
                 <td
                   colSpan={columns.length + 2}
-                  className="px-4 py-8 text-center text-sm text-muted"
+                  className="px-4 py-8 text-center text-sm text-muted bg-card"
                 >
                   Tidak ada data pratinjau sumber.
                 </td>
@@ -94,25 +110,24 @@ export default function SourcePreviewTable({
                   key={row.nis || idx}
                   className="transition-colors hover:bg-line/40"
                 >
-                  <td className="sticky left-0 z-10 whitespace-nowrap bg-card px-4 py-3 font-mono text-sm font-medium text-ink shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
-                    {row.nis || '-'}
+                  <td className="sticky left-0 z-20 whitespace-nowrap bg-card px-4 py-3 font-mono text-sm font-medium text-ink border-r border-line/50">
+                    {row.nis || "-"}
                   </td>
-                  <td className="sticky left-24 z-10 whitespace-nowrap bg-card px-4 py-3 text-sm font-medium text-ink shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-line">
-                    {row.nama || '-'}
+                  <td className="sticky left-[110px] z-20 whitespace-nowrap bg-card px-4 py-3 text-sm font-medium text-ink border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.12)] truncate" title={row.nama || "-"}>
+                    {row.nama || "-"}
                   </td>
                   {columns.map((col) => {
                     const rawVal = row.values?.[col.key];
                     const isEmpty =
                       rawVal === null ||
                       rawVal === undefined ||
-                      rawVal === '' ||
-                      rawVal === '-';
+                      rawVal === "" ||
+                      rawVal === "-";
 
                     let displayVal;
                     if (isEmpty) {
-                      displayVal = '-';
+                      displayVal = "-";
                     } else if (isAkademik) {
-                      // Tampilkan format angka jika valid
                       const num = Number(rawVal);
                       displayVal = Number.isNaN(num) ? rawVal : num;
                     } else {
@@ -122,9 +137,10 @@ export default function SourcePreviewTable({
                     return (
                       <td
                         key={col.key}
-                        className={`whitespace-nowrap px-4 py-3 text-sm ${
-                          isEmpty ? 'font-semibold text-warning' : isAkademik ? 'font-mono text-ink' : 'text-ink'
+                        className={`whitespace-nowrap px-4 py-3 text-sm border-r border-line/40 truncate ${
+                          isEmpty ? "font-semibold text-warning" : isAkademik ? "font-mono text-ink" : "text-ink"
                         }`}
+                        title={String(displayVal)}
                       >
                         {displayVal}
                       </td>
