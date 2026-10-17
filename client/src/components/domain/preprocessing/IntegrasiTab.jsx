@@ -146,7 +146,7 @@ export default function IntegrasiTab({
           variant="solid"
           onClick={handleCtaClick}
           disabled={isRunning}
-          className="min-w-[180px]"
+          className="min-w-45"
         >
           {isRunning ? (
             <div className="flex items-center gap-2">
