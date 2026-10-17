@@ -42,6 +42,18 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/preprocessing/source-preview?jenis=salah
 Authorization: Bearer {{token}}
 
+### 8A. Source Preview limit maksimum (Wajib 200; BE-PRE-FIX-1 AC; cermin panggilan FE limit=1000)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=1000
+Authorization: Bearer {{token}}
+
+### 8B. Source Preview limit di atas maksimum (Wajib 400 validasi Zod; BE-PRE-FIX-1 AC)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=1001
+Authorization: Bearer {{token}}
+
+### 8C. Source Preview periodeId tidak ditemukan (Wajib 404 Bahasa Indonesia; BE-PRE-FIX-1 AC)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=20&periodeId=9999
+Authorization: Bearer {{token}}
+
 ### 9. Jalankan Integrasi pada run AKTIF (Wajib 200; response = shape pipeline-status terbaru;
 # integrated_data terisi, integrated_at + integrated_duration_ms teraudit)
 POST {{baseUrl}}/preprocessing/integration

@@ -3,7 +3,15 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 
-export default function Toast({ open, message, tone = 'danger', onClose, autoDismiss = 5000 }) {
+export default function Toast({
+  open,
+  message,
+  title,
+  description,
+  tone = 'danger',
+  onClose,
+  autoDismiss = 5000,
+}) {
   useEffect(() => {
     if (!open || !autoDismiss) return undefined;
     const timer = setTimeout(() => {
@@ -12,7 +20,7 @@ export default function Toast({ open, message, tone = 'danger', onClose, autoDis
     return () => clearTimeout(timer);
   }, [open, autoDismiss, onClose]);
 
-  if (!open || !message) return null;
+  if (!open || (!message && !title && !description)) return null;
 
   const isSuccess = tone === 'success';
 
@@ -27,10 +35,10 @@ export default function Toast({ open, message, tone = 'danger', onClose, autoDis
           : 'border-danger/30 bg-elevated text-ink'
       )}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-start gap-3 min-w-0">
         <div
           className={cn(
-            'flex size-8 shrink-0 items-center justify-center rounded-full',
+            'flex size-8 shrink-0 items-center justify-center rounded-full mt-0.5',
             isSuccess ? 'bg-success-tint text-success' : 'bg-danger-tint text-danger-text'
           )}
         >
@@ -42,7 +50,16 @@ export default function Toast({ open, message, tone = 'danger', onClose, autoDis
             <AlertTriangle size={18} aria-hidden="true" />
           )}
         </div>
-        <p className="text-sm font-medium leading-5 text-ink">{message}</p>
+        <div className="min-w-0 flex-1">
+          {title ? (
+            <p className="text-sm font-semibold text-ink">{title}</p>
+          ) : null}
+          {(description || message) ? (
+            <p className={cn(title ? 'text-xs text-muted mt-0.5' : 'text-sm font-medium leading-5 text-ink')}>
+              {description || message}
+            </p>
+          ) : null}
+        </div>
       </div>
       <button
         type="button"
