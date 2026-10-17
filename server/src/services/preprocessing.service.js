@@ -226,6 +226,9 @@ function mapNonAkademikRow(sp, naRow) {
   return { nis: sp.siswa.nis ?? null, nama: sp.siswa.nama ?? null, values };
 }
 
+// Kontrak BE-PRE-FIX-1: periodeId EKSPLISIT dihormati (resolvePeriode memvalidasi
+// keberadaan periode -> 404 Bahasa Indonesia 'Periode tidak ditemukan.' bila tidak ada);
+// tanpa periodeId -> fallback periode AKTIF. limit sudah dibatasi Zod 1..1000 (default 100).
 async function getSourcePreview({ jenis, page, limit, periodeId }) {
   const periode = await resolvePeriode(periodeId);
   const whereSp = { periode_id: periode.id };

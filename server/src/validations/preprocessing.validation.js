@@ -7,12 +7,18 @@ const pipelineStatusQuerySchema = z.object({
 });
 
 // GET /preprocessing/source-preview ?jenis=rapor|pts|pas|non_akademik&page&limit&periodeId?
+// Kontrak mentor BE-PRE-FIX-1 (formal):
+// - page   : int >= 1, default 1.
+// - limit  : int 1..1000, default 100 (FE mengirim limit=1000 -> wajib 200).
+// - periodeId : int opsional — BILA ADA pakai periode tsb (404 bila tidak ditemukan),
+//               BILA TIDAK pakai periode AKTIF. Obyek TIDAK strict() agar periodeId
+//               (dan param lain) tidak ditolak.
 const sourcePreviewQuerySchema = z.object({
   jenis: z.enum(['rapor', 'pts', 'pas', 'non_akademik'], {
     message: 'Jenis harus rapor, pts, pas, atau non_akademik',
   }),
   page: z.coerce.number().int().min(1, 'Page minimal 1').default(1),
-  limit: z.coerce.number().int().min(1, 'Limit minimal 1').max(200, 'Limit maksimal 200').default(20),
+  limit: z.coerce.number().int().min(1, 'Limit minimal 1').max(1000, 'Limit maksimal 1000').default(100),
   periodeId: z.coerce.number().int().positive('Periode tidak valid').optional(),
 });
 
