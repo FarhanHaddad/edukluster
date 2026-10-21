@@ -222,6 +222,19 @@ Authorization: Bearer {{token}}
 #     "jenis_kelamin": "L"|"P"|null,   // hasil normalizeJenisKelamin dr SEL sheet ini; null bila kolom tak ada (PTS/PAS/NON-AKADEMIK), sel kosong, atau invalid
 #     "values": { ... }                // isi sel per sheet supaya FE render langsung dari rows (tanpa join previewData)
 #   }
+# ===== Semantik KETERANGAN PER SHEET (tiket BE-IMP-FIX-3B; sumber pesan: katalog utils/importMessages.js):
+#   - keterangan dirender PER TAB — isi string bisa berbeda antar tab utk NIS yang sama.
+#   - Pesan GLOBAL/identitas (NIS kosong/duplikat/sudah terdaftar, Nama kosong, Kelas/JK tidak valid)
+#       -> muncul di SEMUA tab sheet utk baris itu.
+#   - Pesan LOKAL (nilai bukan numerik / di luar rentang; "NIS tidak ditemukan di sheet X")
+#       -> HANYA di tab sheet tempat pesan itu terjadi.
+#   - Catatan "Missing nilai: ..." -> HANYA di tab akademik tempat mapel kosong (per sheet).
+#   - Catatan "Non-akademik kosong diisi default: ..." -> HANYA di tab NON-AKADEMIK.
+#   - Baris bersih tanpa pesan/catatan di tab ini -> "-" (bukan string kosong).
+#   - Status baris per sheet TETAP: error bila ada error global/lokal; else missing bila ada mapel
+#       kosong di sheet itu; else valid (walau punya catatan default). Summary chips TIDAK berubah.
+#   - Confirm: alasan rejectedRows = join pesan ERROR saja dari katalog SAMA (separator " • "),
+#       string identik dengan keterangan sisi error di preview.
 # Semantik values:
 #   - Sheet RAPOR/PTS/PAS : 18 key mapel (agama..ekonomi) -> number|null.
 #   - Sheet NON-AKADEMIK  : 7 key string (ekstrakurikuler, prestasi, kemampuan, organisasi, kursus, jurusan_1, jurusan_2).
@@ -245,6 +258,8 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 ### 15. Confirm Import Excel — mass insert transaksional (Wajib 201 "Import berhasil.";
 # previewId diambil dari response preview (nomor 14). Baris error -> rejectedRows, tidak diinsert.
 # Cache terhapus pasca-sukses: confirm kedua dengan previewId sama -> wajib 404.
+# Cap lama 20 baris SUDAH MATI (tiket BE-IMP-FIX-2): file 105 baris valid -> 201, bukan 400.
+# Plafon baru: importableRows > 2000 -> 400 "Jumlah baris melebihi batas maksimal 2000 baris per file."
 POST {{baseUrl}}/siswa/import-excel/confirm
 Authorization: Bearer {{token}}
 Content-Type: application/json
