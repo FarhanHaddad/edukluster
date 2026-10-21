@@ -1,7 +1,10 @@
 const prisma = require('../lib/prisma');
 const ApiError = require('../utils/ApiError');
-const { previewCache } = require('./excelImport.service');
-const { MATA_PELAJARAN_COLUMNS, normalizeJenisKelamin } = require('../utils/excelConstants');
+const { previewCache, makeBuildKeteranganForSheet, sheetNisKeyOf } = require('./excelImport.service');
+const { MATA_PELAJARAN_COLUMNS, normalizeJenisKelamin, REQUIRED_SHEETS } = require('../utils/excelConstants');
+// Katalog pesan + perakit keterangan (tiket BE-IMP-FIX-3A) — dipakai 3B supaya alasan
+// rejectedRows memakai KATALOG SAMA dan identik persis dengan sisi error rows[].keterangan preview.
+const { buildRowKeterangan } = require('../utils/importMessages');
 
 // ===== Tiket B2: Confirm & Mass Insert transaksional (all-or-nothing).
 // Service TIDAK kenal req/res — controller yang membentuk response 201.
@@ -115,7 +118,7 @@ async function confirmImport(previewId) {
       'Data preview tidak ditemukan atau sudah kedaluwarsa. Silakan upload ulang.'
     );
   }
-  const { previewData, summary, errors } = entry.data;
+  const { previewData, summary, errors, registrasi } = entry.data;
 
   // Sanity check payload cache (harus selalu benar karena ditulis B1 sendiri).
   if (!Array.isArray(previewData)) {
@@ -230,12 +233,64 @@ async function confirmImport(previewId) {
   // --- 5. Sukses: HAPUS cache previewId (idempotency: confirm kedua -> 404). ---
   previewCache.delete(previewId);
 
-  const rejectedRows = (Array.isArray(errors) ? errors : []).map((e) => ({
-    row: e.row,
-    nis: e.nis ?? null,
-    nama: e.nama ?? null, // FE render "[Kosong]" bila null
-    message: e.message,
-  }));
+  // ===== alasan rejectedRows (tiket BE-IMP-FIX-3B): join pesan ERROR SAJA dari KATALOG sama.
+  // Sumber: registrasi terstruktur preview (cache B1) lewat perakit yang SAMA persis dengan
+  // rows[].keterangan sisi error — separator " • ", string identik karakter-per-karakter.
+  // Global/identitas muncul di SEMUA tab; lokal (nilai & "NIS tidak ditemukan") hanya tab asalnya;
+  // catatan non-error (missing nilai / default non-akademik) TIDAK ikut — error saja.
+  // Fallback cache lama tanpa registrasi -> join mentah message errors per (row, nis).
+  const buildKeteranganForSheet = registrasi
+    ? makeBuildKeteranganForSheet(registrasi)
+    : null;
+
+  // Render alasan dari tab tempat error e terjadi (hanya valid utk error LOKAL sheet itu;
+  // error global dirender identik di semua tab sehingga tab mana pun boleh dipakai).
+  function buildAlasanRejected(e) {
+    if (buildKeteranganForSheet && REQUIRED_SHEETS.includes(e.sheet)) {
+      return buildKeteranganForSheet(e.sheet, e.nis ?? null);
+    }
+    return '-';
+  }
+
+  // Dedup per baris fisik (row, NIS): satu item rejected utk tiap baris bermasalah.
+  // `alasan` = join pesan ERROR saja dari katalog sama; bila hasil render "-" (tidak ada
+  // pesan terregistrasi utk baris ini), fallback ke join mentah message errors baris tsb.
+  const seenRejected = new Set();
+  const rejectedRows = [];
+  for (const e of Array.isArray(errors) ? errors : []) {
+    const key = `${e.row}\u0000${String(e.nis ?? '')}`;
+    if (seenRejected.has(key)) continue;
+    seenRejected.add(key);
+    let alasan = buildAlasanRejected(e);
+    if (alasan === '-') {
+      // Render dari semua tab tempat baris ini punya pesan; ambil hasil non-"-" pertama
+      // (pesan global tampil identik di semua tab; pesan lokal tampil di tab asalnya).
+      if (buildKeteranganForSheet) {
+        for (const sheetName of REQUIRED_SHEETS) {
+          const t = buildKeteranganForSheet(sheetName, e.nis ?? null);
+          if (t !== '-') { alasan = t; break; }
+        }
+      }
+      if (alasan === '-') {
+        const peers = (Array.isArray(errors) ? errors : []).filter(
+          (x) => x.row === e.row && String(x.nis ?? '') === String(e.nis ?? '')
+        );
+        const parts = [];
+        for (const p of peers) {
+          const s = String(p.message ?? '').trim();
+          if (s && !parts.includes(s)) parts.push(s);
+        }
+        alasan = parts.length ? parts.join(' • ') : '-';
+      }
+    }
+    rejectedRows.push({
+      row: e.row,
+      nis: e.nis ?? null,
+      nama: e.nama ?? null, // FE render "[Kosong]" bila null
+      message: e.message,
+      alasan,
+    });
+  }
 
   return {
     message: 'Import berhasil.',
