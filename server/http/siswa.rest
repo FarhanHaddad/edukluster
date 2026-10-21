@@ -245,6 +245,8 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 ### 15. Confirm Import Excel — mass insert transaksional (Wajib 201 "Import berhasil.";
 # previewId diambil dari response preview (nomor 14). Baris error -> rejectedRows, tidak diinsert.
 # Cache terhapus pasca-sukses: confirm kedua dengan previewId sama -> wajib 404.
+# Cap lama 20 baris SUDAH MATI (tiket BE-IMP-FIX-2): file 105 baris valid -> 201, bukan 400.
+# Plafon baru: importableRows > 2000 -> 400 "Jumlah baris melebihi batas maksimal 2000 baris per file."
 POST {{baseUrl}}/siswa/import-excel/confirm
 Authorization: Bearer {{token}}
 Content-Type: application/json

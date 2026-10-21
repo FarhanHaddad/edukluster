@@ -25,11 +25,11 @@ function assertJenisKelamin(value, nis) {
   return jk;
 }
 
-// Hitung jumlah baris nilai_akademik yang akan dibuat untuk satu item preview.
-// Dipakai utk sanity-check pra-transaksi: 5 write per baris (1 siswa_periode +
-// 3 nilai_akademik + 1 non_akademik); dengan batas Prisma ~100 concurrent writes,
-// batch > ~20 baris berisiko timeout — gagal cepat (400) lebih baik daripada 500.
-const MAX_CONFIRM_ROWS = 20;
+// Plafon keamanan pra-transaksi (tiket BE-IMP-FIX-2): cap lama 20 baris DIBUANG
+// karena menolak file sah ~105 baris padahal desain (frame IMP-4 "Import 98 Baris
+// Data") dan kontrak confirm TIDAK PERNAH menetapkan cap 20. Yang tersisa hanya
+// plafon atas wajar 2000 baris importable per file sebagai guard rails memori/timeout.
+const MAX_CONFIRM_ROWS = 2000;
 
 // Satu item previewData -> data insert nilai_akademik utk satu jenis nilai.
 // Sel missing (null) TETAP null di DB (kolom nullable) — JANGAN diisi 0.
@@ -127,7 +127,7 @@ async function confirmImport(previewId) {
   if (previewData.length > MAX_CONFIRM_ROWS) {
     throw new ApiError(
       400,
-      `Jumlah baris valid terlalu besar untuk sekali konfirmasi (maks ${MAX_CONFIRM_ROWS}). Silakan pecah file menjadi beberapa batch.`
+      'Jumlah baris melebihi batas maksimal 2000 baris per file.'
     );
   }
 
