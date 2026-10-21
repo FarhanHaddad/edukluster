@@ -24,6 +24,8 @@ const {
   normalizeJenisKelamin,
   PREVIEW_TTL_MS,
 } = require('../utils/excelConstants');
+// Katalog pesan + perakit keterangan per sheet (tiket BE-IMP-FIX-3A -> dipakai di 3B).
+const { IMPORT_MESSAGES, buildRowKeterangan } = require('../utils/importMessages');
 
 // ===== Taksonomi status (C6): valid | missing | error. Prioritas terburuk: error > missing > valid.
 const STATUS_RANK = { valid: 0, missing: 1, error: 2 };
@@ -146,6 +148,42 @@ function makeAddError(errors) {
   };
 }
 
+// ===== Perakit keterangan PER SHEET (tiket BE-IMP-FIX-3B; dipakai preview & confirm).
+// Factory murni (tanpa I/O): menerima registrasi hasil pass validasi, mengembalikan fungsi
+// (sheetName, nis) -> string keterangan dari buildRowKeterangan (katalog 3A). Registrasi:
+//   globalErrors        : Map kNis -> array pesan ERROR GLOBAL/identitas  -> SEMUA tab baris itu.
+//   localErrorsBySheetNis: Map "SHEET\0NIS" -> array pesan ERROR LOKAL     -> HANYA tab sheet itu.
+//   missingBySheetNis   : Map key sama -> Set label mapel kosong           -> HANYA tab akademik tsb.
+//   defaultFieldsByNis  : Map kNis -> array field non-akademik ter-default -> HANYA tab NON-AKADEMIK.
+// Baris bersih di tab ini -> "-". Key NIS null memakai sentinel '\u0000null' (mis. NIS kosong).
+const NILAI_SHEETS = new Set([SHEET_RAPOR, SHEET_PTS, SHEET_PAS]);
+function sheetNisKeyOf(sheetName, nis) {
+  return `${sheetName}\u0000${nis == null ? '\u0000null' : String(nis)}`;
+}
+function nisKeyOf(nis) {
+  return nis == null ? '\u0000null' : String(nis);
+}
+function makeBuildKeteranganForSheet({
+  globalErrors,
+  localErrorsBySheetNis,
+  missingBySheetNis,
+  defaultFieldsByNis,
+}) {
+  return (sheetName, nis) => {
+    const kNis = nisKeyOf(nis);
+    const key = sheetNisKeyOf(sheetName, nis);
+    // localErrorsBySheetNis sudah ber-key (SHEET, NIS) sehingga secara struktural hanya berisi
+    // pesan sheet itu — "NIS tidak ditemukan di sheet X" hanya terdaftar di key sheet X dan
+    // tidak pernah bocor ke tab lain.
+    return buildRowKeterangan({
+      globalErrors: globalErrors.get(kNis) ?? [],
+      localErrors: localErrorsBySheetNis.get(key) ?? [],
+      missingLabels: NILAI_SHEETS.has(sheetName) ? [...(missingBySheetNis.get(key) ?? [])] : [],
+      defaultFields: sheetName === SHEET_NON_AKADEMIK ? defaultFieldsByNis.get(kNis) ?? [] : [],
+    });
+  };
+}
+
 // ===== Pipeline utama: parse + validasi + join by NIS. READ-ONLY terhadap DB (tidak ada insert).
 async function parseAndPreview(file) {
   // --- Validasi kehadiran & ekstensi file (fatal bila gagal). ---
@@ -194,6 +232,58 @@ async function parseAndPreview(file) {
   const errors = [];
   const addError = makeAddError(errors);
 
+  // ===== Registrasi error TERSTRUKTUR utk perakit keterangan per sheet (tiket BE-IMP-FIX-3B).
+  // Satu-satunya sumber pesan: katalog IMPORT_MESSAGES (utils/importMessages.js, hasil 3A) —
+  // string error di `errors`, `keterangan` rows[] preview, maupun alasan rejectedRows confirm
+  // identik persis. Struktur disimpan di `registrasi` dan ikut di-cache (lihat storePreview).
+  const globalByNis = new Map(); // kNis -> array pesan ERROR GLOBAL/identitas (semua tab)
+  const localBySheetNis = new Map(); // "SHEET\0NIS" -> array pesan ERROR LOKAL (hanya tab itu)
+  const missingBySheetNis = new Map(); // "SHEET\0NIS" -> Set label mapel kosong di sheet itu
+  const defaultFieldsByNis = new Map(); // kNis -> field non-akademik terisi default D4 (tab NON-AKADEMIK)
+  const registrasi = {
+    globalErrors: globalByNis,
+    localErrorsBySheetNis: localBySheetNis,
+    missingBySheetNis,
+    defaultFieldsByNis,
+  };
+  const pushGlobal = (nis, message) => {
+    const k = nisKeyOf(nis);
+    if (!globalByNis.has(k)) globalByNis.set(k, []);
+    const arr = globalByNis.get(k);
+    if (!arr.includes(message)) arr.push(message);
+  };
+  const pushLocal = (sheetName, nis, message) => {
+    const k = sheetNisKeyOf(sheetName, nis);
+    if (!localBySheetNis.has(k)) localBySheetNis.set(k, []);
+    localBySheetNis.get(k).push(message);
+  };
+  const pushMissing = (sheetName, nis, header) => {
+    const k = sheetNisKeyOf(sheetName, nis);
+    if (!missingBySheetNis.has(k)) missingBySheetNis.set(k, new Set());
+    missingBySheetNis.get(k).add(header);
+  };
+
+  // ===== Perakit SATU pesan error dari KATALOG (tiket BE-IMP-FIX-3B; sumber tunggal: importMessages.js).
+  // kind 'global' -> dicatat di globalByNis (muncul di SEMUA tab sheet baris itu).
+  // kind 'local'  -> dicatat di localBySheetNis (hanya muncul di tab sheet tempat nilai bermasalah).
+  // Pesan yang TIDAK ada di katalog (mis. 'Jenis kelamin kosong.' — varian kasus khusus) tetap
+  // diteruskan apa adanya ke `errors` & ikut keterangan, tanpa mengubah string existing.
+  const catalogError = ({ kind, row, sheet, field, nis, message }) => {
+    if (kind === 'global') pushGlobal(nis, message);
+    else pushLocal(sheet, nis, message);
+    addError({ row, sheet, field, nis: nis ?? null, message });
+  };
+  // Varian utk sel nilai akademik: pilih template katalog persis (bukan numerik / di luar rentang),
+  // catat sbg error LOKAL sheet tsb, dan kembalikan pesannya (dipakai juga utk pass 1/2 lama).
+  const addNilaiError = ({ row, sheet, header, res, nis }) => {
+    const message =
+      res.message === 'di luar rentang (0-100)'
+        ? IMPORT_MESSAGES.nilaiDiLuarRentang(header)
+        : IMPORT_MESSAGES.nilaiBukanNumerik(header);
+    catalogError({ kind: 'local', row, sheet, field: header, nis, message });
+    return message;
+  };
+
   // Register per NIS (join lintas sheet) + register per-sheet utk tabel UI.
   const entries = new Map(); // nis -> entry
   const ensureEntry = (nis) => {
@@ -217,11 +307,11 @@ async function parseAndPreview(file) {
   for (const { __row, cells } of rapor.rows) {
     const nis = normalizeNis(cells[normalizeLabel(HEADER_NIS)]);
     if (nis === '') {
-      addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_NIS, nis: null, message: 'NIS kosong.' });
+      catalogError({ kind: 'global', row: __row, sheet: SHEET_RAPOR, field: HEADER_NIS, nis: null, message: IMPORT_MESSAGES.NIS_KOSONG });
       continue;
     }
     if (seenRapornNis.has(nis)) {
-      addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_NIS, nis, message: 'NIS duplikat di dalam file.' });
+      catalogError({ kind: 'global', row: __row, sheet: SHEET_RAPOR, field: HEADER_NIS, nis, message: IMPORT_MESSAGES.NIS_DUPLIKAT });
       const e = ensureEntry(nis);
       e.status = worstStatus(e.status, 'error');
       e.sheetStatus[SHEET_RAPOR] = worstStatus(e.sheetStatus[SHEET_RAPOR] ?? 'valid', 'error');
@@ -244,18 +334,19 @@ async function parseAndPreview(file) {
 
     let rowStatus = 'valid';
     if (nama === '') {
-      addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_NAMA, nis, message: 'Nama siswa kosong.' });
+      catalogError({ kind: 'global', row: __row, sheet: SHEET_RAPOR, field: HEADER_NAMA, nis, message: IMPORT_MESSAGES.NAMA_KOSONG });
       rowStatus = 'error';
     }
     if (!VALID_KELAS.includes(kelas)) {
-      addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_KELAS, nis, message: 'Kelas tidak valid (wajib XII-1 sampai XII-4).' });
+      catalogError({ kind: 'global', row: __row, sheet: SHEET_RAPOR, field: HEADER_KELAS, nis, message: IMPORT_MESSAGES.KELAS_TIDAK_VALID });
       rowStatus = 'error';
     }
     if (jkRaw === '') {
       addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_JENIS_KELAMIN, nis, message: 'Jenis kelamin kosong.' });
+      pushGlobal(nis, 'Jenis kelamin kosong.');
       rowStatus = 'error';
     } else if (jk === null) {
-      addError({ row: __row, sheet: SHEET_RAPOR, field: HEADER_JENIS_KELAMIN, nis, message: 'Jenis kelamin tidak valid (wajib L/P atau Laki-laki/Perempuan).' });
+      catalogError({ kind: 'global', row: __row, sheet: SHEET_RAPOR, field: HEADER_JENIS_KELAMIN, nis, message: IMPORT_MESSAGES.JK_TIDAK_VALID });
       rowStatus = 'error';
     }
     entry.identitas = { nama, kelas, jenis_kelamin: jk ?? jkRaw };
@@ -265,11 +356,12 @@ async function parseAndPreview(file) {
     for (const { dbKey, header } of MATA_PELAJARAN_COLUMNS) {
       const res = validateNilai(cells[normalizeLabel(header)]);
       if (!res.ok) {
-        addError({ row: __row, sheet: SHEET_RAPOR, field: header, nis, message: `Nilai ${header} ${res.message}.` });
+        addNilaiError({ row: __row, sheet: SHEET_RAPOR, header, res, nis });
         rowStatus = 'error';
         mapelObj[dbKey] = null;
       } else if (res.blank) {
         rowStatus = worstStatus(rowStatus, 'missing');
+        pushMissing(SHEET_RAPOR, nis, header);
         mapelObj[dbKey] = null; // previewData: nilai kosong = null
       } else {
         mapelObj[dbKey] = res.value;
@@ -286,11 +378,11 @@ async function parseAndPreview(file) {
     for (const { __row, cells } of spec.data.rows) {
       const nis = normalizeNis(cells[normalizeLabel(HEADER_NIS)]);
       if (nis === '') {
-        addError({ row: __row, sheet: spec.sheetName, field: HEADER_NIS, nis: null, message: 'NIS kosong.' });
+        catalogError({ kind: 'global', row: __row, sheet: spec.sheetName, field: HEADER_NIS, nis: null, message: IMPORT_MESSAGES.NIS_KOSONG });
         continue;
       }
       if (seen.has(nis)) {
-        addError({ row: __row, sheet: spec.sheetName, field: HEADER_NIS, nis, message: 'NIS duplikat di dalam file.' });
+        catalogError({ kind: 'global', row: __row, sheet: spec.sheetName, field: HEADER_NIS, nis, message: IMPORT_MESSAGES.NIS_DUPLIKAT });
         const e = ensureEntry(nis);
         e.status = worstStatus(e.status, 'error');
         e.sheetStatus[spec.sheetName] = worstStatus(e.sheetStatus[spec.sheetName] ?? 'valid', 'error');
@@ -307,11 +399,12 @@ async function parseAndPreview(file) {
       for (const { dbKey, header } of MATA_PELAJARAN_COLUMNS) {
         const res = validateNilai(cells[normalizeLabel(header)]);
         if (!res.ok) {
-          addError({ row: __row, sheet: spec.sheetName, field: header, nis, message: `Nilai ${header} ${res.message}.` });
+          addNilaiError({ row: __row, sheet: spec.sheetName, header, res, nis });
           rowStatus = 'error';
           mapelObj[dbKey] = null;
         } else if (res.blank) {
           rowStatus = worstStatus(rowStatus, 'missing');
+          pushMissing(spec.sheetName, nis, header);
           mapelObj[dbKey] = null;
         } else {
           mapelObj[dbKey] = res.value;
@@ -329,11 +422,11 @@ async function parseAndPreview(file) {
     for (const { __row, cells } of nonAk.rows) {
       const nis = normalizeNis(cells[normalizeLabel(HEADER_NIS)]);
       if (nis === '') {
-        addError({ row: __row, sheet: SHEET_NON_AKADEMIK, field: HEADER_NIS, nis: null, message: 'NIS kosong.' });
+        catalogError({ kind: 'global', row: __row, sheet: SHEET_NON_AKADEMIK, field: HEADER_NIS, nis: null, message: IMPORT_MESSAGES.NIS_KOSONG });
         continue;
       }
       if (seen.has(nis)) {
-        addError({ row: __row, sheet: SHEET_NON_AKADEMIK, field: HEADER_NIS, nis, message: 'NIS duplikat di dalam file.' });
+        catalogError({ kind: 'global', row: __row, sheet: SHEET_NON_AKADEMIK, field: HEADER_NIS, nis, message: IMPORT_MESSAGES.NIS_DUPLIKAT });
         const e = ensureEntry(nis);
         e.status = worstStatus(e.status, 'error');
         e.sheetStatus[SHEET_NON_AKADEMIK] = worstStatus(e.sheetStatus[SHEET_NON_AKADEMIK] ?? 'valid', 'error');
@@ -346,10 +439,17 @@ async function parseAndPreview(file) {
       entry.rowRefs[SHEET_NON_AKADEMIK] = __row;
 
       const na = {};
+      const defaulted = []; // field non-akademik yang terisi default D4 (catatan utk tab NON-AKADEMIK)
       for (const [header, field] of Object.entries(NON_AKADEMIK_FIELD_MAP)) {
         const val = cellStr(cells[normalizeLabel(header)]);
-        na[field] = isBlankStr(val) ? NON_AKADEMIK_DEFAULTS[field] : val;
+        if (isBlankStr(val)) {
+          na[field] = NON_AKADEMIK_DEFAULTS[field];
+          defaulted.push(field);
+        } else {
+          na[field] = val;
+        }
       }
+      if (defaulted.length) defaultFieldsByNis.set(String(nis), defaulted);
       entry.nonAkademik = na;
       // Non-akademik tidak menghasilkan status missing/error (sel kosong otomatis ter-default).
       entry.sheetStatus[SHEET_NON_AKADEMIK] = worstStatus(entry.sheetStatus[SHEET_NON_AKADEMIK] ?? 'valid', 'valid');
@@ -361,7 +461,7 @@ async function parseAndPreview(file) {
     for (const sheetName of REQUIRED_SHEETS) {
       if (!entry.sheetsSeen.has(sheetName)) {
         const refRow = entry.rowRefs[SHEET_RAPOR] ?? entry.rowRefs[SHEET_NON_AKADEMIK] ?? 0;
-        addError({ row: refRow, sheet: sheetName, field: HEADER_NIS, nis: entry.nis, message: `NIS tidak ditemukan di sheet ${sheetName}.` });
+        catalogError({ kind: 'local', row: refRow, sheet: sheetName, field: HEADER_NIS, nis: entry.nis, message: IMPORT_MESSAGES.nisTidakDitemukan(sheetName) });
         entry.status = worstStatus(entry.status, 'error');
         entry.sheetStatus[sheetName] = worstStatus(entry.sheetStatus[sheetName] ?? 'valid', 'error');
       }
@@ -379,7 +479,7 @@ async function parseAndPreview(file) {
       const entry = entries.get(row.nis);
       if (!entry) continue;
       const refRow = entry.rowRefs[SHEET_RAPOR] ?? entry.rowRefs[SHEET_NON_AKADEMIK] ?? 0;
-      addError({ row: refRow, sheet: SHEET_RAPOR, field: HEADER_NIS, nis: entry.nis, message: 'NIS sudah terdaftar di periode aktif.' });
+      catalogError({ kind: 'global', row: refRow, sheet: SHEET_RAPOR, field: HEADER_NIS, nis: entry.nis, message: IMPORT_MESSAGES.NIS_SUDAH_TERDAFTAR });
       entry.status = worstStatus(entry.status, 'error');
       entry.sheetStatus[SHEET_RAPOR] = worstStatus(entry.sheetStatus[SHEET_RAPOR] ?? 'valid', 'error');
     }
@@ -486,22 +586,32 @@ async function parseAndPreview(file) {
     return values;
   };
 
+  // ===== Perakit KETERANGAN PER SHEET (tiket BE-IMP-FIX-3B; memakai buildRowKeterangan hasil 3A).
+  // Kontrak semantik rows[].keterangan pada tiap tab sheet:
+  //   - Pesan GLOBAL/identitas (NIS kosong/duplikat/sudah terdaftar, Nama kosong, Kelas/JK invalid)
+  //     -> muncul di SEMUA tab sheet utk baris NIS itu.
+  //   - Pesan LOKAL (nilai non-numerik / di luar rentang; "NIS tidak ditemukan di sheet X")
+  //     -> HANYA di tab sheet tempat pesan itu terjadi.
+  //   - Catatan "Missing nilai" -> HANYA di tab akademik tempat mapel kosong (per sheet).
+  //   - Catatan default non-akademik -> HANYA di tab NON-AKADEMIK.
+  //   - Baris bersih tanpa apa pun di tab ini -> "-".
+  // Status baris per sheet TIDAK berubah (tetap worstStatusLocal); summary chips juga tidak berubah.
+  const notFoundPrefix = 'NIS tidak ditemukan di sheet ';
+  const buildKeteranganForSheet = makeBuildKeteranganForSheet(registrasi);
+
   const buildSheetBlock = (sheetName, rowsIter, nisOf) => {
     const sheetErrors = errors.filter((e) => e.sheet === sheetName);
     // Kumpulkan NIS yang punya error LOKAL di sheet ini. Pengecualian: pesan "NIS tidak ditemukan
     // di sheet <X>" diregistrasikan pd sheet X utk baris yang absen (tak ada cells utk row tsb) —
     // bukan indikator kegagalan validasi sel, jadi tidak memicu mode RAW.
-    const notFoundPrefix = 'NIS tidak ditemukan di sheet ';
     const localErrorNis = new Set(
       sheetErrors.filter((e) => !(e.field === HEADER_NIS && typeof e.message === 'string' && e.message.startsWith(notFoundPrefix))).map((e) => String(e.nis ?? ''))
     );
     const rows = rowsIter.map(({ __row, cells }) => {
       const nis = nisOf(__row);
       const entry = nis ? entries.get(nis) : null;
-      // nis pada error global boleh null (misal NIS kosong) — pakai String utk perbandingan.
-      const rowErrs = sheetErrors.filter((e) => String(e.nis ?? '') === String(nis ?? ''));
-      let keterangan = '';
-      if (rowErrs.length) keterangan = rowErrs.map((e) => e.message).join(' ');
+      // Keterangan PER SHEET dari katalog (buildKeteranganForSheet) — bukan lagi join mentah rowErrs.
+      const keterangan = buildKeteranganForSheet(sheetName, nis);
       const status = entry ? worstStatusLocal(sheetName, entry) : 'error';
       return {
         row: __row,
@@ -564,7 +674,7 @@ async function parseAndPreview(file) {
   // PERLUASAN PAYLOAD CACHE (tiket B2): `errors` ikut disimpan supaya service confirm
   // dapat membentuk rejectedRows (baris error yang DITOLAK, tidak diinsert) tanpa
   // menyentuh kontrak response preview (field respons publik tetap sama).
-  const previewId = storePreview({ previewData, summary, errors, fileName: file.originalname, uploadedAt: new Date().toISOString() });
+  const previewId = storePreview({ previewData, summary, errors, registrasi, fileName: file.originalname, uploadedAt: new Date().toISOString() });
 
   return {
     previewId,
@@ -578,4 +688,12 @@ async function parseAndPreview(file) {
   };
 }
 
-module.exports = { parseAndPreview, previewCache };
+module.exports = {
+  parseAndPreview,
+  previewCache,
+  // Eksport helper perakit keterangan (tiket BE-IMP-FIX-3B) — dipakai excelConfirm.service.js
+  // supaya alasan rejectedRows memakai KATALOG & registrasi yang SAMA dengan preview.
+  makeBuildKeteranganForSheet,
+  sheetNisKeyOf,
+  nisKeyOf,
+};
