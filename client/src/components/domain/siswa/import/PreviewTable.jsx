@@ -12,6 +12,22 @@ export const NON_AKADEMIK_COLS = [
   { key: 'jurusan_2', label: 'JURUSAN 2' },
 ];
 
+function getKeteranganStyle(row) {
+  const ket = (row?.keterangan || '-').trim();
+  if (ket === '-' || !ket) {
+    return 'text-muted';
+  }
+
+  const status = String(row?.status || '').toLowerCase();
+  if (status === 'error') {
+    return 'text-danger-text font-medium';
+  }
+  if (status === 'missing') {
+    return 'text-warning font-medium';
+  }
+  return 'text-muted';
+}
+
 export default function PreviewTable({
   activeSheetTab,
   paginatedRows,
@@ -77,8 +93,8 @@ export default function PreviewTable({
               const rowNum = (previewPage - 1) * pageSize + idx + 1;
               const originalRowNumber = row.row;
               const rowStatus = row.status || 'Valid';
-              const isMissingRow = rowStatus === 'Missing';
-              const isErrorRow = rowStatus === 'Error';
+              const isMissingRow = String(rowStatus).toLowerCase() === 'missing';
+              const isErrorRow = String(rowStatus).toLowerCase() === 'error';
 
               const jk = row.jenis_kelamin;
               const jkLabel =
@@ -179,7 +195,10 @@ export default function PreviewTable({
                   </td>
                   <td
                     style={rowBgStyle}
-                    className="sticky right-0 z-10 px-4 py-2.5 w-44 min-w-44 text-muted border-b border-l border-line/50"
+                    className={cn(
+                      'sticky right-0 z-10 px-4 py-2.5 w-44 min-w-44 whitespace-normal break-words border-b border-l border-line/50',
+                      getKeteranganStyle(row)
+                    )}
                   >
                     {row.keterangan || '-'}
                   </td>
