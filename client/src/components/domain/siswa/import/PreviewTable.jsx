@@ -196,7 +196,7 @@ export default function PreviewTable({
                   <td
                     style={rowBgStyle}
                     className={cn(
-                      'sticky right-0 z-10 px-4 py-2.5 w-44 min-w-44 whitespace-normal break-words border-b border-l border-line/50',
+                      'sticky right-0 z-10 px-4 py-2.5 w-44 min-w-44 whitespace-normal wrap-break-word border-b border-l border-line/50',
                       getKeteranganStyle(row)
                     )}
                   >
