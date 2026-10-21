@@ -76,9 +76,9 @@ export default function ResultStep({
                           <span className="italic text-faint">[Kosong]</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-danger-text flex items-center gap-1.5">
+                      <td className="px-4 py-2 text-danger-text flex items-center gap-1.5 whitespace-normal wrap-break-word">
                         <X className="h-3.5 w-3.5 shrink-0" />
-                        <span>{row.message}</span>
+                        <span>{row.alasan || row.message}</span>
                       </td>
                     </tr>
                   );
