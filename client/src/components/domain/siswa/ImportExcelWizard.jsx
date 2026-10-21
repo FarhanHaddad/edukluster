@@ -1062,7 +1062,7 @@ export default function ImportExcelWizard({ onSwitchToDaftarTab, showToast }) {
                           </td>
                           <td className="px-4 py-2 text-danger-text flex items-center gap-1.5">
                             <X className="h-3.5 w-3.5 shrink-0" />
-                            <span>{row.message}</span>
+                            <span>{row.alasan || row.message}</span>
                           </td>
                         </tr>
                       ))}
