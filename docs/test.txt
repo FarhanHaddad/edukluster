@@ -1,0 +1,48 @@
+-- ========== PRE-CHECK (baseline data mentah wajib utuh) ==========
+SELECT
+  (SELECT COUNT(*) FROM siswa)          AS siswa,         -- harap 105
+  (SELECT COUNT(*) FROM siswa_periode)  AS siswa_periode, -- harap 105
+  (SELECT COUNT(*) FROM nilai_akademik) AS nilai,         -- harap 315
+  (SELECT COUNT(*) FROM non_akademik)   AS non_akademik;  -- harap 105
+
+-- ========== TIER 2: artefak K-Means & output (aman selalu dijalankan) ==========
+DELETE FROM recommendation;
+DELETE FROM cluster_result;
+DELETE FROM cluster_profile;
+DELETE FROM cluster_assignment;
+DELETE FROM kmeans_iteration;
+DELETE FROM centroid;
+DELETE FROM kmeans_run;
+
+-- ========== TIER 1: artefak preprocessing (inti reset) ==========
+DELETE FROM reduced_data;
+DELETE FROM transformed_data;
+DELETE FROM cleaned_data;
+DELETE FROM integrated_data;
+DELETE FROM category_mapping;
+DELETE FROM category_assignment;
+DELETE FROM category_option;
+DELETE FROM preprocessing_run;
+
+-- ========== POST-CHECK (semua wajib 0) ==========
+SELECT
+  (SELECT COUNT(*) FROM preprocessing_run)   AS run,
+  (SELECT COUNT(*) FROM integrated_data)     AS integrated,
+  (SELECT COUNT(*) FROM cleaned_data)        AS cleaned,
+  (SELECT COUNT(*) FROM transformed_data)    AS transformed,
+  (SELECT COUNT(*) FROM reduced_data)        AS reduced,
+  (SELECT COUNT(*) FROM category_mapping)    AS mapping,
+  (SELECT COUNT(*) FROM category_option)     AS option,
+  (SELECT COUNT(*) FROM category_assignment) AS assignment,
+  (SELECT COUNT(*) FROM kmeans_run)          AS kmeans,
+  (SELECT COUNT(*) FROM cluster_result)      AS cluster;
+
+-- ========== OPSIONAL kosmetik (id demo mulai dari 1 lagi) ==========
+-- ALTER TABLE preprocessing_run AUTO_INCREMENT = 1;
+-- ALTER TABLE integrated_data AUTO_INCREMENT = 1;
+-- ALTER TABLE cleaned_data AUTO_INCREMENT = 1;
+-- ALTER TABLE transformed_data AUTO_INCREMENT = 1;
+-- ALTER TABLE reduced_data AUTO_INCREMENT = 1;
+-- ALTER TABLE category_mapping AUTO_INCREMENT = 1;
+-- ALTER TABLE category_option AUTO_INCREMENT = 1;
+-- ALTER TABLE category_assignment AUTO_INCREMENT = 1;
