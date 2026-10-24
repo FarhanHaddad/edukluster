@@ -85,7 +85,10 @@ Authorization: Bearer {{token}}
 
 ### 15. Jalankan Cleaning method MEAN + mapping L1 (Wajib 200; response = shape pipeline-status terbaru;
 # cleaned_data terisi (missing akademik = rata-rata GLOBAL), category_mapping run aktif ter-replace,
-# transformed_invalidated_at & reduced_invalidated_at terisi, rows transformed/reduced TERHAPUS (V-4))
+# transformed_invalidated_at & reduced_invalidated_at terisi, rows transformed/reduced TERHAPUS (V-4)).
+# Catatan Kasus 409 (Duplikat Mapping / P2002): Jika terjadi race condition submit ganda pada category_mapping,
+# Prisma P2002 ditangkap service dan dibungkus menjadi ApiError 409 Bahasa Indonesia:
+# "Konfigurasi mapping gagal disimpan: terdeteksi pemetaan ganda pada run ini. Silakan muat ulang konfigurasi dan ulangi."
 POST {{baseUrl}}/preprocessing/cleaning
 Content-Type: application/json
 Authorization: Bearer {{token}}
