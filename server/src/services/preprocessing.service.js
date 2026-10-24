@@ -539,19 +539,52 @@ async function runCleaning(body, adminInfo, query) {
 
   const { activeRun, integratedRows } = await getActiveRunIntegratedRows(periodeIdBigInt);
   if (!activeRun || integratedRows.length === 0) {
-    throw new ApiError(400, 'Stage integrasi belum selesai dijalankan. Jalankan integrasi terlebih dahulu sebelum cleaning.');
+    throw new ApiError(400, "Stage integrasi belum selesai dijalankan. Jalankan integrasi terlebih dahulu sebelum cleaning.");
   }
 
-  // Normalisasi body.mappings -> Map(field -> Map(raw -> standard)), hanya entri string.
-  const mappingMap = new Map();
-  for (const [fieldName, pairs] of Object.entries(body.mappings ?? {})) {
-    if (!NON_AKADEMIK_FIELDS.includes(fieldName) || typeof pairs !== 'object' || pairs === null) continue;
-    const inner = new Map();
-    for (const [rawValue, standardValue] of Object.entries(pairs)) {
-      if (typeof standardValue !== 'string') continue;
-      inner.set(rawValue, standardValue);
+  // Scope 1: Bangun mappingCreates dari SATU sumber kebenaran: Map keyed "${fieldName}|${rawValue}"
+  // isi awal = identity pre-fill seluruh raw dari integrated_data run aktif;
+  // lalu OVERRIDE dari body.mappings. Dedupe via Map = wajib.
+  const mappingEntriesMap = new Map();
+
+  for (const fieldName of NON_AKADEMIK_FIELDS) {
+    for (const row of integratedRows) {
+      const raw = row[fieldName];
+      if (raw === null || raw === undefined) continue;
+      const rawStr = String(raw);
+      const key = `${fieldName}|${rawStr}`;
+      if (!mappingEntriesMap.has(key)) {
+        mappingEntriesMap.set(key, {
+          field_name: fieldName,
+          raw_value: rawStr,
+          standard_value: rawStr,
+        });
+      }
     }
-    if (inner.size > 0) mappingMap.set(fieldName, inner);
+  }
+
+  if (body.mappings && typeof body.mappings === "object") {
+    for (const [fieldName, pairs] of Object.entries(body.mappings)) {
+      if (!NON_AKADEMIK_FIELDS.includes(fieldName) || typeof pairs !== "object" || pairs === null) continue;
+      for (const [rawValue, standardValue] of Object.entries(pairs)) {
+        if (typeof standardValue !== "string") continue;
+        const key = `${fieldName}|${rawValue}`;
+        mappingEntriesMap.set(key, {
+          field_name: fieldName,
+          raw_value: rawValue,
+          standard_value: standardValue,
+        });
+      }
+    }
+  }
+
+  // Map for applying L1 standard values to cleaned_data
+  const mappingMap = new Map();
+  for (const entry of mappingEntriesMap.values()) {
+    if (!mappingMap.has(entry.field_name)) {
+      mappingMap.set(entry.field_name, new Map());
+    }
+    mappingMap.get(entry.field_name).set(entry.raw_value, entry.standard_value);
   }
 
   // (b) Imputasi GLOBAL: kumpulkan nilai non-null per mapel lintas seluruh siswa run ini.
@@ -569,66 +602,71 @@ async function runCleaning(body, adminInfo, query) {
   const targetRunId = activeRun.id;
   const now = new Date();
 
-  await prisma.$transaction(async (tx) => {
-    // (a) Replace mapping L1 run aktif.
-    await tx.category_mapping.deleteMany({ where: { preprocessing_run_id: targetRunId } });
-    const mappingCreates = [];
-    for (const [fieldName, inner] of mappingMap) {
-      for (const [rawValue, standardValue] of inner) {
-        mappingCreates.push({
-          preprocessing_run_id: targetRunId,
-          field_name: fieldName,
-          raw_value: rawValue,
-          standard_value: standardValue,
-        });
-      }
-    }
-    if (mappingCreates.length > 0) {
-      await tx.category_mapping.createMany({ data: mappingCreates });
-    }
-
-    // (c)+(d) Bangun & simpan cleaned_data (bulk) utk seluruh baris integrasi run aktif.
-    await tx.cleaned_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
-    const creates = integratedRows.map((row) => {
-      const out = {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // (a) Replace mapping L1 run aktif SEBELUM createMany (re-run idempoten).
+      await tx.category_mapping.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+      const mappingCreates = Array.from(mappingEntriesMap.values()).map((entry) => ({
         preprocessing_run_id: targetRunId,
-        siswa_periode_id: row.siswa_periode_id,
-      };
-      for (const field of NUMERIC_FIELDS) {
-        const v = row[field];
-        // Sel missing akademik diisi nilai imputasi GLOBAL; tetap null bila
-        // imputasi tak terdefinisi (mis. mode seri lengkap tanpa dominasi).
-        out[field] = v !== null && v !== undefined ? v : imputedByField[field];
+        field_name: entry.field_name,
+        raw_value: entry.raw_value,
+        standard_value: entry.standard_value,
+      }));
+      if (mappingCreates.length > 0) {
+        await tx.category_mapping.createMany({ data: mappingCreates });
       }
-      for (const field of NON_AKADEMIK_FIELDS) {
-        const raw = row[field];
-        const inner = mappingMap.get(field);
-        // Identity fallback bila rawValue tidak ada di mapping FE (tetap ter-standardisasi).
-        out[field] = inner?.get(raw) ?? raw;
+
+      // (c)+(d) Bangun & simpan cleaned_data (bulk) utk seluruh baris integrasi run aktif.
+      await tx.cleaned_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+      const creates = integratedRows.map((row) => {
+        const out = {
+          preprocessing_run_id: targetRunId,
+          siswa_periode_id: row.siswa_periode_id,
+        };
+        for (const field of NUMERIC_FIELDS) {
+          const v = row[field];
+          // Sel missing akademik diisi nilai imputasi GLOBAL; tetap null bila
+          // imputasi tak terdefinisi (mis. mode seri lengkap tanpa dominasi).
+          out[field] = v !== null && v !== undefined ? v : imputedByField[field];
+        }
+        for (const field of NON_AKADEMIK_FIELDS) {
+          const raw = row[field];
+          const inner = mappingMap.get(field);
+          // Identity fallback bila rawValue tidak ada di mapping FE (tetap ter-standardisasi).
+          out[field] = inner?.get(raw) ?? raw;
+        }
+        return out;
+      });
+      if (creates.length > 0) {
+        await tx.cleaned_data.createMany({ data: creates });
       }
-      return out;
+
+      // (f) Invalidasi hilir sesuai matriks V-4: Transformasi & Reduksi WAJIB di-reset.
+      await tx.transformed_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+      await tx.reduced_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+
+      // (e) Audit stage cleaning + penanda invalidasi hilir.
+      const finishedAt = new Date();
+      await tx.preprocessing_run.update({
+        where: { id: targetRunId },
+        data: {
+          cleaned_at: finishedAt,
+          cleaned_duration_ms: Math.max(0, finishedAt.getTime() - startedWall),
+          imputation_method: method,
+          transformed_invalidated_at: now,
+          reduced_invalidated_at: now,
+        },
+      });
     });
-    if (creates.length > 0) {
-      await tx.cleaned_data.createMany({ data: creates });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new ApiError(
+        409,
+        "Konfigurasi mapping gagal disimpan: terdeteksi pemetaan ganda pada run ini. Silakan muat ulang konfigurasi dan ulangi."
+      );
     }
-
-    // (f) Invalidasi hilir sesuai matriks V-4: Transformasi & Reduksi WAJIB di-reset.
-    await tx.transformed_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
-    await tx.reduced_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
-
-    // (e) Audit stage cleaning + penanda invalidasi hilir.
-    const finishedAt = new Date();
-    await tx.preprocessing_run.update({
-      where: { id: targetRunId },
-      data: {
-        cleaned_at: finishedAt,
-        cleaned_duration_ms: Math.max(0, finishedAt.getTime() - startedWall),
-        imputation_method: method,
-        transformed_invalidated_at: now,
-        reduced_invalidated_at: now,
-      },
-    });
-  });
+    throw err;
+  }
 
   // (g) Response = shape pipeline-status terbaru (kontrak mentor).
   return assemblePipelineStatus(periode);
