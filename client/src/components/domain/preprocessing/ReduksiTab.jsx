@@ -49,7 +49,7 @@ export default function ReduksiTab({
       refetchSummary?.();
     } catch (err) {
       setRunError(
-        err.response?.data?.message || 'Gagal menjalankan reduksi data.'
+        err.response?.data?.message || err.message || 'Gagal menjalankan reduksi data.'
       );
     }
   };
@@ -230,7 +230,7 @@ export default function ReduksiTab({
             type="button"
             onClick={executeRunReduction}
             disabled={runReductionMut.isPending}
-            className="min-w-[200px]"
+            className="min-w-50"
           >
             {runReductionMut.isPending ? (
               <div className="flex items-center gap-2">
@@ -278,7 +278,14 @@ export default function ReduksiTab({
               onClick={handleConfirmReRun}
               disabled={runReductionMut.isPending}
             >
-              {runReductionMut.isPending ? 'Memproses...' : 'Jalankan Ulang'}
+              {runReductionMut.isPending ? (
+                <div className="flex items-center gap-2">
+                  <div className="size-4 animate-spin rounded-full border-2 border-on-brand border-t-transparent" />
+                  <span>Memproses...</span>
+                </div>
+              ) : (
+                'Jalankan Ulang'
+              )}
             </Button>
           </div>
         </div>

@@ -74,7 +74,7 @@ export default function TransformasiTab({
       refetchPipeline?.();
       onSuccess?.();
     } catch (err) {
-      setRunError(err.response?.data?.message || 'Gagal menjalankan transformasi data.');
+      setRunError(err.response?.data?.message || err.message || 'Gagal menjalankan transformasi data.');
     }
   };
 
@@ -192,7 +192,7 @@ export default function TransformasiTab({
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-line pt-4 gap-3">
         <p className="text-xs text-muted">{!isUnmappedEmpty ? 'Petakan semua nilai baru untuk melanjutkan.' : 'Siap menjalankan proses transformasi dan normalisasi.'}</p>
-        <Button variant="solid" type="button" onClick={() => (isTransformCompleted ? setConfirmOpen(true) : executeRunTransform())} disabled={!isUnmappedEmpty || runTransMut.isPending} className="min-w-[220px]">
+        <Button variant="solid" type="button" onClick={() => (isTransformCompleted ? setConfirmOpen(true) : executeRunTransform())} disabled={!isUnmappedEmpty || runTransMut.isPending} className="min-w-55">
           {runTransMut.isPending ? 'Memproses...' : isTransformCompleted ? <div className="flex items-center gap-2"><RotateCcw size={16} /><span>Jalankan Ulang Transformasi</span></div> : <div className="flex items-center gap-2"><Play size={16} /><span>Jalankan Transformasi Data</span></div>}
         </Button>
       </div>
@@ -206,7 +206,7 @@ export default function TransformasiTab({
           <p className="text-sm text-muted">Mengulang transformasi akan mereset hasil Reduksi Data jika sudah dijalankan.</p>
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={runTransMut.isPending}>Batal</Button>
-            <Button variant="solid" onClick={async () => { setConfirmOpen(false); await executeRunTransform(); }} disabled={runTransMut.isPending}>{runTransMut.isPending ? 'Memproses...' : 'Jalankan Ulang'}</Button>
+            <Button variant="solid" onClick={async () => { setConfirmOpen(false); await executeRunTransform(); }} disabled={runTransMut.isPending}>{runTransMut.isPending ? <div className="flex items-center gap-2"><div className="size-4 animate-spin rounded-full border-2 border-on-brand border-t-transparent" /><span>Memproses...</span></div> : 'Jalankan Ulang'}</Button>
           </div>
         </div>
       </Dialog>
