@@ -258,7 +258,7 @@ export default function CleaningTab({
           type="button"
           onClick={handleCtaClick}
           disabled={runCleaningMutation.isPending}
-          className="min-w-[200px]"
+          className="min-w-50"
         >
           {runCleaningMutation.isPending ? (
             <div className="flex items-center gap-2">
