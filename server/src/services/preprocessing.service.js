@@ -111,6 +111,9 @@ async function findLatestRun(periodeIdBigInt) {
   });
 }
 
+// Helper resolveCurrentRun = findLatestRun (run TERBARU per periode TANPA filter status)
+const resolveCurrentRun = findLatestRun;
+
 // Run AKTIF per periode; bila belum ada, buat baru (status ACTIVE, imputation default median).
 async function ensureActiveRun(periodeIdBigInt, adminId, adminUsername) {
   const existing = await prisma.preprocessing_run.findFirst({
@@ -329,43 +332,54 @@ async function runIntegration(adminInfo, query) {
     throw new ApiError(422, 'Belum ada siswa pada periode aktif. Tambahkan atau impor data siswa terlebih dahulu sebelum menjalankan integrasi.');
   }
 
-  // Run AKTIF saat ini (buat baru bila belum ada run sama sekali).
-  const activeRun = await ensureActiveRun(periodeIdBigInt, adminInfo.id, adminInfo.username);
+  // Run TERBARU saat ini (status apa pun: ACTIVE, COMPLETED, dll).
+  const latestRun = await resolveCurrentRun(periodeIdBigInt);
 
-  // Deteksi re-run sebelum transaksi: run aktif sudah punya hasil stage (rows ATAU
-  // timestamp eksekusi hilir) -> sesuai matriks V-4 harus dibuat run baru.
-  const [priorIntegrated, priorCleaned, priorTransformed, priorReduced] = await Promise.all([
-    prisma.integrated_data.count({ where: { preprocessing_run_id: activeRun.id } }),
-    prisma.cleaned_data.count({ where: { preprocessing_run_id: activeRun.id } }),
-    prisma.transformed_data.count({ where: { preprocessing_run_id: activeRun.id } }),
-    prisma.reduced_data.count({ where: { preprocessing_run_id: activeRun.id } }),
-  ]);
-  const isRerun =
-    priorIntegrated > 0 || priorCleaned > 0 || priorTransformed > 0 || priorReduced > 0;
+  let targetRun = null;
+  let isRerun = false;
 
-  // Jalur cepat: run belum pernah dieksekusi sama sekali -> TIDAK ada invalidasi (no-op),
-  // cukup jalankan integrasi pada run ACTIVE yang sama.
-  const neverExecuted =
-    priorIntegrated === 0 && priorCleaned === 0 && priorTransformed === 0 && priorReduced === 0 &&
-    activeRun.cleaned_at == null && activeRun.transformed_at == null && activeRun.reduced_at == null;
+  if (!latestRun) {
+    // Tiada latest -> buat baru (pakai ensureActiveRun utk P2002 race protection)
+    targetRun = await ensureActiveRun(periodeIdBigInt, adminInfo.id, adminInfo.username);
+  } else {
+    const [priorIntegrated, priorCleaned, priorTransformed, priorReduced] = await Promise.all([
+      prisma.integrated_data.count({ where: { preprocessing_run_id: latestRun.id } }),
+      prisma.cleaned_data.count({ where: { preprocessing_run_id: latestRun.id } }),
+      prisma.transformed_data.count({ where: { preprocessing_run_id: latestRun.id } }),
+      prisma.reduced_data.count({ where: { preprocessing_run_id: latestRun.id } }),
+    ]);
+
+    const everRan =
+      priorIntegrated > 0 || priorCleaned > 0 || priorTransformed > 0 || priorReduced > 0 ||
+      latestRun.integrated_at != null || latestRun.cleaned_at != null ||
+      latestRun.transformed_at != null || latestRun.reduced_at != null;
+
+    if (everRan) {
+      // latest ada && pernah dieksekusi (rows/timestamp) -> buat run BARU + set latest lama SUPERSEDED
+      isRerun = true;
+    } else {
+      // latest ada && belum pernah dieksekusi -> pakai latest
+      targetRun = latestRun;
+    }
+  }
 
   const run = await prisma.$transaction(async (tx) => {
-    let target = activeRun;
+    let target;
 
-    if (!neverExecuted) {
+    if (isRerun) {
       // Matriks V-4: re-run Integration -> run baru (ACTIVE); run lama SUPERSEDED
       // dengan penanda invalidasi Cleaning+Transformasi+Reduksi di-reset.
       target = await tx.preprocessing_run.create({
         data: {
           periode_id: periodeIdBigInt,
           admin_id: BigInt(adminInfo.id),
-          imputation_method: activeRun.imputation_method,
+          imputation_method: latestRun.imputation_method || 'median',
           status: RUN_STATUS.ACTIVE,
           started_at: new Date(),
         },
       });
       await tx.preprocessing_run.update({
-        where: { id: activeRun.id },
+        where: { id: latestRun.id },
         data: {
           status: RUN_STATUS.SUPERSEDED,
           completed_at: new Date(),
@@ -381,7 +395,8 @@ async function runIntegration(adminInfo, query) {
         },
       });
     } else {
-      // Eksekusi pertama / retry pada run ACTIVE yang sama: bersihkan rows integrasi lama.
+      // Eksekusi pertama / retry pada run yang sama: bersihkan rows integrasi lama.
+      target = targetRun;
       await tx.integrated_data.deleteMany({ where: { preprocessing_run_id: target.id } });
     }
 
@@ -504,10 +519,7 @@ function computeImputedValue(method, values) {
 
 // Ambil hasil integrasi run AKTIF (dipakai config & eksekusi cleaning).
 async function getActiveRunIntegratedRows(periodeIdBigInt) {
-  const activeRun = await prisma.preprocessing_run.findFirst({
-    where: { periode_id: periodeIdBigInt, status: RUN_STATUS.ACTIVE },
-    orderBy: [{ started_at: 'desc' }, { id: 'desc' }],
-  });
+  const activeRun = await resolveCurrentRun(periodeIdBigInt);
   if (!activeRun) return { activeRun: null, integratedRows: [] };
   const integratedRows = await prisma.integrated_data.findMany({
     where: { preprocessing_run_id: activeRun.id },
@@ -711,6 +723,7 @@ async function runCleaning(body, adminInfo, query) {
       await tx.preprocessing_run.update({
         where: { id: targetRunId },
         data: {
+          status: RUN_STATUS.ACTIVE,
           cleaned_at: finishedAt,
           cleaned_duration_ms: Math.max(0, finishedAt.getTime() - startedWall),
           imputation_method: method,
@@ -760,10 +773,7 @@ async function ensureKamusSeeded(tx, periodeIdBigInt) {
 
 // Run AKTIF + row cleaned_data-nya (prasyarat semua endpoint transform).
 async function getActiveRunCleanedRows(periodeIdBigInt) {
-  const activeRun = await prisma.preprocessing_run.findFirst({
-    where: { periode_id: periodeIdBigInt, status: RUN_STATUS.ACTIVE },
-    orderBy: [{ started_at: 'desc' }, { id: 'desc' }],
-  });
+  const activeRun = await resolveCurrentRun(periodeIdBigInt);
   if (!activeRun) return { activeRun: null, cleanedRows: [] };
   const cleanedRows = await prisma.cleaned_data.findMany({
     where: { preprocessing_run_id: activeRun.id },
@@ -1103,6 +1113,7 @@ async function runTransform(adminInfo, query) {
 
     // (3) Re-run diizinkan: delete+insert transformed_data run aktif dalam transaksi sama.
     await tx.transformed_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
+    await tx.reduced_data.deleteMany({ where: { preprocessing_run_id: targetRunId } });
     if (encodedRows.length > 0) {
       await tx.transformed_data.createMany({ data: encodedRows });
     }
@@ -1112,9 +1123,12 @@ async function runTransform(adminInfo, query) {
     await tx.preprocessing_run.update({
       where: { id: targetRunId },
       data: {
+        status: RUN_STATUS.ACTIVE,
         transformed_at: finishedAt,
         transformed_duration_ms: Math.max(0, finishedAt.getTime() - startedWall),
         transformed_invalidated_at: null,
+        reduced_at: null,
+        reduced_duration_ms: null,
         reduced_invalidated_at: null,
       },
     });
@@ -1134,10 +1148,7 @@ async function runReduction(adminInfo, query) {
   const periode = await resolvePeriode(query.periodeId);
   const periodeIdBigInt = periode.id;
 
-  const activeRun = await prisma.preprocessing_run.findFirst({
-    where: { periode_id: periodeIdBigInt, status: RUN_STATUS.ACTIVE },
-    orderBy: [{ started_at: 'desc' }, { id: 'desc' }],
-  });
+  const activeRun = await resolveCurrentRun(periodeIdBigInt);
 
   const transformedCount = activeRun
     ? await prisma.transformed_data.count({ where: { preprocessing_run_id: activeRun.id } })
@@ -1224,5 +1235,5 @@ module.exports = {
   runTransform,
   runReduction,
   getReductionSummary,
-  _internals: { STAGE_STATE, RUN_STATUS, buildStages, resolvePeriode, computeImputedValue, ensureKamusSeeded, minMaxNormalizeColumn },
+  _internals: { resolveCurrentRun, STAGE_STATE, RUN_STATUS, buildStages, resolvePeriode, computeImputedValue, ensureKamusSeeded, minMaxNormalizeColumn },
 };
