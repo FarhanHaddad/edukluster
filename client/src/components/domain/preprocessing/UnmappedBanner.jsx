@@ -144,7 +144,7 @@ export default function UnmappedBanner({ fields = [], onCreateOption, onSaveAssi
                           onChange={() => handleToggleSelect(fn, val)}
                           className="size-4 rounded border-line text-brand focus:ring-brand"
                         />
-                        <span className="truncate font-medium">{val}</span>
+                        <span className="truncate font-medium">{item.label ?? val}</span>
                       </div>
                       <span className="font-mono text-muted shrink-0">({formatAngka(item.count)})</span>
                     </label>

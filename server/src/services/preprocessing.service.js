@@ -23,6 +23,58 @@ const REDUCTION_FEATURE_FIELDS = [...NUMERIC_FIELDS, ...NON_AKADEMIK_FIELDS];
 // Ringkasan fitur final utk response summary (kontrak tiket).
 const REDUCTION_FITUR_FINAL = `${REDUCTION_FEATURE_FIELDS.length} numerik + NIS (meta)`;
 
+// Helper normKey: Trim + Lowercase untuk pencegahan kolisi kolasi MySQL (utf8mb4_unicode_ci)
+function normKey(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).trim().toLowerCase();
+}
+
+// Kelompokkan daftar nilai mentah/standar berdasarkan normKey
+// Mengembalikan array of { key (normKey), label (varian trimmed terbanyak), count (total grup) }
+function groupValueDistribution(values) {
+  const groups = new Map();
+
+  for (let i = 0; i < values.length; i++) {
+    const raw = values[i];
+    if (raw === null || raw === undefined) continue;
+    const str = String(raw);
+    const nk = normKey(str);
+    if (nk === '') continue;
+    const trimmed = str.trim();
+
+    if (!groups.has(nk)) {
+      groups.set(nk, {
+        nk,
+        totalCount: 0,
+        trimmedCounts: new Map(),
+      });
+    }
+
+    const g = groups.get(nk);
+    g.totalCount += 1;
+    g.trimmedCounts.set(trimmed, (g.trimmedCounts.get(trimmed) || 0) + 1);
+  }
+
+  const result = [];
+  for (const [nk, g] of groups.entries()) {
+    let bestLabel = '';
+    let maxCount = -1;
+    for (const [trimmed, count] of g.trimmedCounts.entries()) {
+      if (count > maxCount) {
+        maxCount = count;
+        bestLabel = trimmed;
+      }
+    }
+    result.push({
+      key: nk,
+      label: bestLabel,
+      count: g.totalCount,
+    });
+  }
+
+  return result;
+}
+
 // RULE WAJIB: BigInt -> Number di semua response.
 function toNumber(value) {
   if (value === null || value === undefined) return null;
@@ -471,6 +523,7 @@ async function getCleaningConfig(query) {
   const { activeRun, integratedRows } = await getActiveRunIntegratedRows(periode.id);
 
   // Mapping L1 tersimpan pada run aktif (category_mapping per run).
+  // raw_value tersimpan sebagai normKey.
   let mappingsByField = {};
   if (activeRun) {
     const mappingRows = await prisma.category_mapping.findMany({
@@ -478,32 +531,34 @@ async function getCleaningConfig(query) {
     });
     for (const m of mappingRows) {
       if (!m.field_name || !m.raw_value) continue;
+      const nk = normKey(m.raw_value);
       (mappingsByField[m.field_name] ??= []).push({
-        rawValue: m.raw_value,
+        rawValue: nk,
         standardValue: m.standard_value ?? m.raw_value,
       });
     }
   }
 
   const fields = NON_AKADEMIK_FIELDS.map((fieldName) => {
-    // GROUP BY in-memory atas kolom ini di integrated_data (null tidak dihitung —
-    // Integrasi sudah mengisi default kamus sehingga praktis tidak ada null di sini).
-    const counts = new Map();
-    for (const row of integratedRows) {
-      const raw = row[fieldName];
-      if (raw === null || raw === undefined) continue;
-      counts.set(raw, (counts.get(raw) ?? 0) + 1);
-    }
-    const rawDistribution = [...counts.entries()]
-      .map(([rawValue, count]) => ({ rawValue, count }))
-      .sort((a, b) => b.count - a.count || String(a.rawValue).localeCompare(String(b.rawValue)));
+    const rawValues = integratedRows.map((r) => r[fieldName]).filter((v) => v !== null && v !== undefined);
+    const groups = groupValueDistribution(rawValues);
+
+    groups.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
     const stored = mappingsByField[fieldName] ?? [];
     const storedByRaw = new Map(stored.map((m) => [m.rawValue, m.standardValue]));
-    // Pre-fill identity utk rawValue yang belum punya category_mapping.
-    const mappings = rawDistribution.map(({ rawValue }) => ({
-      rawValue,
-      standardValue: storedByRaw.has(rawValue) ? storedByRaw.get(rawValue) : rawValue,
+
+    const rawDistribution = groups.map((g) => ({
+      rawValue: g.key,
+      label: g.label,
+      count: g.count,
+    }));
+
+    const mappings = groups.map((g) => ({
+      rawValue: g.key,
+      label: g.label,
+      count: g.count,
+      standardValue: storedByRaw.has(g.key) ? storedByRaw.get(g.key) : g.label,
     }));
 
     return { fieldName, rawDistribution, mappings };
@@ -542,43 +597,44 @@ async function runCleaning(body, adminInfo, query) {
     throw new ApiError(400, "Stage integrasi belum selesai dijalankan. Jalankan integrasi terlebih dahulu sebelum cleaning.");
   }
 
-  // Scope 1: Bangun mappingCreates dari SATU sumber kebenaran: Map keyed "${fieldName}|${rawValue}"
-  // isi awal = identity pre-fill seluruh raw dari integrated_data run aktif;
-  // lalu OVERRIDE dari body.mappings. Dedupe via Map = wajib.
+  // Scope 1 & 2: Bangun mappingEntriesMap dari SATU sumber kebenaran: Map keyed "${fieldName}|${normKey}"
+  // raw_value tersimpan sebagai normKey(raw_value).
+  // Pre-fill standard_value = label (varian trimmed terbanyak) dari groupValueDistribution.
   const mappingEntriesMap = new Map();
 
   for (const fieldName of NON_AKADEMIK_FIELDS) {
-    for (const row of integratedRows) {
-      const raw = row[fieldName];
-      if (raw === null || raw === undefined) continue;
-      const rawStr = String(raw);
-      const key = `${fieldName}|${rawStr}`;
-      if (!mappingEntriesMap.has(key)) {
-        mappingEntriesMap.set(key, {
-          field_name: fieldName,
-          raw_value: rawStr,
-          standard_value: rawStr,
-        });
-      }
+    const rawValues = integratedRows.map((r) => r[fieldName]).filter((v) => v !== null && v !== undefined);
+    const groups = groupValueDistribution(rawValues);
+    for (const g of groups) {
+      const key = `${fieldName}|${g.key}`;
+      mappingEntriesMap.set(key, {
+        field_name: fieldName,
+        raw_value: g.key,
+        standard_value: g.label,
+      });
     }
   }
 
+  // OVERRIDE dari body.mappings (input pasangan rawValue -> standardValue)
+  // Input rawValue maupun kuncinya disesuaikan ke normKey.
   if (body.mappings && typeof body.mappings === "object") {
     for (const [fieldName, pairs] of Object.entries(body.mappings)) {
       if (!NON_AKADEMIK_FIELDS.includes(fieldName) || typeof pairs !== "object" || pairs === null) continue;
-      for (const [rawValue, standardValue] of Object.entries(pairs)) {
-        if (typeof standardValue !== "string") continue;
-        const key = `${fieldName}|${rawValue}`;
+      for (const [rawValueInput, standardValueInput] of Object.entries(pairs)) {
+        if (typeof standardValueInput !== "string") continue;
+        const nk = normKey(rawValueInput);
+        if (nk === '') continue;
+        const key = `${fieldName}|${nk}`;
         mappingEntriesMap.set(key, {
           field_name: fieldName,
-          raw_value: rawValue,
-          standard_value: standardValue,
+          raw_value: nk,
+          standard_value: standardValueInput,
         });
       }
     }
   }
 
-  // Map for applying L1 standard values to cleaned_data
+  // Map for applying L1 standard values to cleaned_data keyed by normKey
   const mappingMap = new Map();
   for (const entry of mappingEntriesMap.values()) {
     if (!mappingMap.has(entry.field_name)) {
@@ -631,9 +687,14 @@ async function runCleaning(body, adminInfo, query) {
         }
         for (const field of NON_AKADEMIK_FIELDS) {
           const raw = row[field];
-          const inner = mappingMap.get(field);
-          // Identity fallback bila rawValue tidak ada di mapping FE (tetap ter-standardisasi).
-          out[field] = inner?.get(raw) ?? raw;
+          if (raw === null || raw === undefined) {
+            out[field] = null;
+          } else {
+            const nk = normKey(raw);
+            const inner = mappingMap.get(field);
+            // standard = map.get(normKey(raw)) ?? String(raw).trim()
+            out[field] = inner?.get(nk) ?? String(raw).trim();
+          }
         }
         return out;
       });
@@ -713,15 +774,14 @@ async function getActiveRunCleanedRows(periodeIdBigInt) {
 
 // Distribusi distinct nilai standar per field dari cleaned_data run aktif (list terurut).
 function stdValueCounts(cleanedRows, fieldName) {
-  const counts = new Map();
-  for (const row of cleanedRows) {
-    const v = row[fieldName];
-    if (v === null || v === undefined) continue;
-    counts.set(v, (counts.get(v) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([standardValue, count]) => ({ standardValue, count }))
-    .sort((a, b) => b.count - a.count || String(a.standardValue).localeCompare(String(b.standardValue)));
+  const values = cleanedRows.map((r) => r[fieldName]).filter((v) => v !== null && v !== undefined);
+  const groups = groupValueDistribution(values);
+  groups.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  return groups.map((g) => ({
+    standardValue: g.key,
+    label: g.label,
+    count: g.count,
+  }));
 }
 
 // Invalidasi hilir sesuai matriks V-4: DELETE transformed_data + reduced_data run aktif,
@@ -759,23 +819,21 @@ async function getTransformConfig(query) {
     prisma.category_assignment.findMany({ where: { periode_id: periode.id } }),
   ]);
 
-  const assignedByFieldOption = new Map(); // `${field}\u0000${optionId}` -> rows
-  const assignedSet = new Set(); // `${field}\u0000${standardValue}`
+  const assignedByFieldOption = new Map(); // `${field} ${optionId}` -> rows
+  const assignedSet = new Set(); // `${field} ${normKey(standardValue)}`
   for (const a of assignments) {
-    const key = `${a.field_name}\u0000${toNumber(a.option_id)}`;
+    const nk = normKey(a.standard_value);
+    const key = `${a.field_name} ${toNumber(a.option_id)}`;
     if (!assignedByFieldOption.has(key)) assignedByFieldOption.set(key, []);
-    assignedByFieldOption.get(key).push(a);
-    assignedSet.add(`${a.field_name}\u0000${a.standard_value}`);
+    assignedByFieldOption.get(key).push({ ...a, standard_value: nk });
+    assignedSet.add(`${a.field_name} ${nk}`);
   }
 
-  // Distribusi distinct nilai standar per field dari cleaned_data run aktif —
-  // dipakai untuk mengisi `count` pada assignedValues DAN unmapped (kontrak:
-  // count = jumlah siswa dengan nilai standar tersebut di run aktif).
   const stdCountsByField = new Map();
   for (const fieldName of NON_AKADEMIK_FIELDS) {
     const map = new Map();
-    for (const { standardValue, count } of stdValueCounts(cleanedRows, fieldName)) {
-      map.set(standardValue, count);
+    for (const item of stdValueCounts(cleanedRows, fieldName)) {
+      map.set(item.standardValue, item);
     }
     stdCountsByField.set(fieldName, map);
   }
@@ -787,17 +845,26 @@ async function getTransformConfig(query) {
   }
 
   const fields = NON_AKADEMIK_FIELDS.map((fieldName) => {
-    const fieldCounts = stdCountsByField.get(fieldName);
+    const fieldCounts = stdCountsByField.get(fieldName) ?? new Map();
     const fieldOptions = (optionsByField.get(fieldName) ?? []).map((o) => {
-      const assigned = assignedByFieldOption.get(`${fieldName}\u0000${toNumber(o.id)}`) ?? [];
+      const assigned = assignedByFieldOption.get(`${fieldName} ${toNumber(o.id)}`) ?? [];
       const assignedValues = assigned
-        .map((a) => ({ standardValue: a.standard_value, count: fieldCounts.get(a.standard_value) ?? 0 }))
-        .sort((x, y) => y.count - x.count || String(x.standardValue).localeCompare(String(y.standardValue)));
+        .map((a) => {
+          const item = fieldCounts.get(a.standard_value);
+          return {
+            standardValue: a.standard_value,
+            label: item ? item.label : a.standard_value,
+            count: item ? item.count : 0,
+          };
+        })
+        .sort((x, y) => y.count - x.count || x.label.localeCompare(y.label));
       return { id: toNumber(o.id), name: o.name, code: o.code, assignedValues };
     });
+
     const unmapped = stdValueCounts(cleanedRows, fieldName)
-      .filter(({ standardValue }) => !assignedSet.has(`${fieldName}\u0000${standardValue}`))
-      .map(({ standardValue, count }) => ({ standardValue, count }));
+      .filter(({ standardValue }) => !assignedSet.has(`${fieldName} ${standardValue}`))
+      .map(({ standardValue, label, count }) => ({ standardValue, label, count }));
+
     return { fieldName, options: fieldOptions, unmapped };
   });
 
@@ -884,8 +951,17 @@ async function saveTransformAssignments(body, query) {
     throw new ApiError(400, 'Field tidak termasuk field non-akademik yang dapat ditransformasi.');
   }
   const now = new Date();
-  // De-dup input (last-wins) agar createMany tidak menabrak unique-nya sendiri.
-  const values = [...new Set(body.standardValues)];
+  // De-dup input by normKey (last-wins)
+  const normValueMap = new Map();
+  if (Array.isArray(body.standardValues)) {
+    for (const v of body.standardValues) {
+      const nk = normKey(v);
+      if (nk !== '') {
+        normValueMap.set(nk, nk);
+      }
+    }
+  }
+  const values = [...normValueMap.values()];
 
   const result = await prisma.$transaction(async (tx) => {
     const option = await tx.category_option.findUnique({ where: { id: BigInt(body.optionId) } });
@@ -904,14 +980,16 @@ async function saveTransformAssignments(body, query) {
         standard_value: { in: values },
       },
     });
-    await tx.category_assignment.createMany({
-      data: values.map((standardValue) => ({
-        periode_id: periode.id,
-        field_name: body.fieldName,
-        standard_value: standardValue,
-        option_id: option.id,
-      })),
-    });
+    if (values.length > 0) {
+      await tx.category_assignment.createMany({
+        data: values.map((standardValue) => ({
+          periode_id: periode.id,
+          field_name: body.fieldName,
+          standard_value: standardValue,
+          option_id: option.id,
+        })),
+      });
+    }
 
     const invalidated = await invalidateDownstreamIfTransformed(tx, periode.id, now);
     return { option, invalidated };
@@ -956,12 +1034,12 @@ async function runTransform(adminInfo, query) {
 
   // Gate unmapped: setiap distinct nilai standar wajib punya category_assignment.
   const assignments = await prisma.category_assignment.findMany({ where: { periode_id: periodeIdBigInt } });
-  const assignedSet = new Set(assignments.map((a) => `${a.field_name}\u0000${a.standard_value}`));
+  const assignedSet = new Set(assignments.map((a) => `${a.field_name} ${normKey(a.standard_value)}`));
   const unmappedList = [];
   for (const fieldName of NON_AKADEMIK_FIELDS) {
-    for (const { standardValue, count } of stdValueCounts(cleanedRows, fieldName)) {
-      if (!assignedSet.has(`${fieldName}\u0000${standardValue}`)) {
-        unmappedList.push({ fieldName, standardValue, count });
+    for (const { standardValue, label, count } of stdValueCounts(cleanedRows, fieldName)) {
+      if (!assignedSet.has(`${fieldName} ${standardValue}`)) {
+        unmappedList.push({ fieldName, standardValue, label, count });
       }
     }
   }
@@ -975,7 +1053,7 @@ async function runTransform(adminInfo, query) {
   const finishedAt = new Date();
 
   await prisma.$transaction(async (tx) => {
-    // Peta lookup: field+standard_value -> code option (include opsi utk validasi kepemilikan).
+    // Peta lookup: field+standard_value (normKey) -> code option (include opsi utk validasi kepemilikan).
     const rowsWithOption = await tx.category_assignment.findMany({
       where: { periode_id: periodeIdBigInt },
       include: { option: { select: { code: true, periode_id: true, field_name: true } } },
@@ -984,7 +1062,8 @@ async function runTransform(adminInfo, query) {
     for (const a of rowsWithOption) {
       if (!a.option || toNumber(a.option.periode_id) !== toNumber(periodeIdBigInt)) continue;
       if (a.field_name !== a.option.field_name) continue; // guard integritas L2
-      codeByFieldStd.set(`${a.field_name}\u0000${a.standard_value}`, a.option.code);
+      const nk = normKey(a.standard_value);
+      codeByFieldStd.set(`${a.field_name} ${nk}`, a.option.code);
     }
 
     // (1) Encode: bangun row mentah per siswa — 18 akademik (Decimal cleaned) + 7 code.
@@ -993,7 +1072,8 @@ async function runTransform(adminInfo, query) {
       for (const field of NUMERIC_FIELDS) out[field] = row[field];
       for (const field of NON_AKADEMIK_FIELDS) {
         const std = row[field];
-        const code = std === null || std === undefined ? undefined : codeByFieldStd.get(`${field}\u0000${std}`);
+        const nk = normKey(std);
+        const code = (std === null || std === undefined || nk === '') ? undefined : codeByFieldStd.get(`${field} ${nk}`);
         out[field] = code === undefined ? null : new Prisma.Decimal(code);
       }
       return out;
