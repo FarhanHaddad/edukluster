@@ -73,7 +73,7 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/preprocessing/pipeline-status
 Authorization: Bearer {{token}}
 
-### 13. Cleaning Config — distribusi raw non-akademik + mapping L1 (identity pre-fill)
+### 13. Cleaning Config — distribusi raw non-akademik + mapping L1 (raw_value normKey, label, count total)
 # + statistik missing akademik (BE-PRE-2). Wajib 200; data: { imputationMethod, fields[7], academicMissing[18] }
 # Pra-syarat: jalankan Integrasi (#9) dulu agar integrated_data terisi.
 GET {{baseUrl}}/preprocessing/cleaning/config
@@ -84,7 +84,7 @@ GET {{baseUrl}}/preprocessing/cleaning/config?periodeId=1
 Authorization: Bearer {{token}}
 
 ### 15. Jalankan Cleaning method MEAN + mapping L1 (Wajib 200; response = shape pipeline-status terbaru;
-# cleaned_data terisi (missing akademik = rata-rata GLOBAL), category_mapping run aktif ter-replace,
+# cleaned_data terisi (missing akademik = rata-rata GLOBAL), category_mapping run aktif ter-replace (raw_value=normKey),
 # transformed_invalidated_at & reduced_invalidated_at terisi, rows transformed/reduced TERHAPUS (V-4)).
 # Catatan Kasus 409 (Duplikat Mapping / P2002): Jika terjadi race condition submit ganda pada category_mapping,
 # Prisma P2002 ditangkap service dan dibungkus menjadi ApiError 409 Bahasa Indonesia:
@@ -134,7 +134,7 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/preprocessing/pipeline-status
 Authorization: Bearer {{token}}
 
-### 21. Transform Config — kamus bidang L2 + assignedValues + unmapped (BE-PRE-3)
+### 21. Transform Config — kamus bidang L2 + assignedValues + unmapped (standardValue=normKey, label, count total)
 # Lazy seed: GET config PERDANA menyisipkan seluruh KAMUS_BIDANG ke category_option periode ini
 # (cek: SELECT * FROM category_option WHERE periode_id=...). Pra-syarat: Cleaning SELESAI (#15),
 # else 400 Bahasa Indonesia. data: { fields[7]: { fieldName, options[{id,name,code,assignedValues}], unmapped[] } }
@@ -175,7 +175,7 @@ Authorization: Bearer {{token}}
 
 { "fieldName": "ekstrakurikuler", "name": "Bidang Baru", "code": 2 }
 
-### 27. Mapping L2: petakan nilai standar -> bidang (upsert unique periode+field+standard_value).
+### 27. Mapping L2: petakan nilai standar -> bidang (upsert unique periode+field+standard_value via normKey).
 # Ganti id option dgn id hasil #21 (data.fields[].options[].id).
 # JIKA transformed_data run aktif ADA -> invalidasi V-4: DELETE transformed+reduced,
 # kedua flag invalidated terisi -> badge Transformasi & Reduksi RESET (downstreamInvalidated=true).
