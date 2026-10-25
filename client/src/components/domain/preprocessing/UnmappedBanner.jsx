@@ -161,7 +161,7 @@ export default function UnmappedBanner({ fields = [], onCreateOption, onSaveAssi
                     {!isFormOpen && (
                       <Button variant="emphasis" size="md" onClick={() => handleOpenNewForm(fieldItem)} className="h-8 px-3 text-xs">
                         <Plus size={14} />
-                        <span>+ Buat Bidang Baru</span>
+                        <span>Buat Bidang Baru</span>
                       </Button>
                     )}
                   </div>
