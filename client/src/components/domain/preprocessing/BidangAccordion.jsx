@@ -146,7 +146,7 @@ export default function BidangAccordion({
                                         key={aIdx}
                                         className="inline-flex items-center gap-1 rounded bg-page border border-line px-2 py-0.5 text-xs text-ink"
                                       >
-                                        <span>{a.standardValue}</span>
+                                        <span>{a.label ?? a.standardValue}</span>
                                         <span className="font-mono text-[10px] text-muted">
                                           ({formatAngka(a.count)})
                                         </span>

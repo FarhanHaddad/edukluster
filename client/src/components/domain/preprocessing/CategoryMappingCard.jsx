@@ -85,7 +85,7 @@ export default function CategoryMappingCard({
                           </td>
                           <td className="px-3 py-2">
                             <span className="inline-block rounded bg-page border border-line px-2 py-0.5 font-mono text-xs text-ink">
-                              {item.rawValue}
+                              {item.label ?? item.rawValue}
                             </span>
                           </td>
                           <td className="px-3 py-2 font-mono text-xs text-right font-medium text-ink">
@@ -139,7 +139,7 @@ export default function CategoryMappingCard({
                             </td>
                             <td className="px-3 py-2">
                               <span className="inline-block rounded bg-page border border-line px-2 py-0.5 font-mono text-xs text-ink">
-                                {rawVal}
+                                {item.label ?? rawVal}
                               </span>
                             </td>
                             <td className="px-3 py-2">
