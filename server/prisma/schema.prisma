@@ -31,8 +31,8 @@ model Periode {
   updatedAt           DateTime?             @updatedAt @map("updated_at") @db.Timestamp(0)
   preprocessing_run   preprocessing_run[]
   siswa_periode       siswa_periode[]
-  category_option     CategoryOption[]
-  category_assignment CategoryAssignment[]
+  category_option     category_option[]
+  category_assignment category_assignment[]
 
   @@unique([tahunAjaran, semester], map: "periode_index_0")
   @@map("periode")
@@ -41,14 +41,14 @@ model Periode {
 // Kamus nilai kategorik per periode: memetakan (field_name, name) -> code integer.
 // Keputusan V-3=TIDAK: `code` read-only pasca-creation (tidak ada endpoint update kode),
 // sehingga kolom cukup biasa tanpa mekanisme versioning.
-model CategoryOption {
+model category_option {
   id         BigInt               @id @default(autoincrement())
   periode_id BigInt
   field_name String               @db.VarChar(30)
   name       String               @db.VarChar(100)
   code       Int
   periode    Periode              @relation(fields: [periode_id], references: [id], onDelete: Cascade)
-  category_assignment CategoryAssignment[]
+  category_assignment category_assignment[]
 
   @@unique([periode_id, field_name, name], map: "category_option_index_name")
   @@unique([periode_id, field_name, code], map: "category_option_index_code")
@@ -57,15 +57,15 @@ model CategoryOption {
 }
 
 // Assignment L2: nilai terstandarisasi (standard_value) per (periode, field_name)
-// yang menunjuk ke opsi kamus CategoryOption.
-model CategoryAssignment {
+// yang menunjuk ke opsi kamus category_option.
+model category_assignment {
   id             BigInt         @id @default(autoincrement())
   periode_id     BigInt
   field_name     String         @db.VarChar(30)
   standard_value String         @db.VarChar(191)
   option_id      BigInt
   periode        Periode        @relation(fields: [periode_id], references: [id], onDelete: Cascade)
-  option         CategoryOption @relation(fields: [option_id], references: [id], onDelete: Cascade)
+  option         category_option @relation(fields: [option_id], references: [id], onDelete: Cascade)
 
   @@unique([periode_id, field_name, standard_value], map: "category_assignment_index_0")
   @@index([option_id], map: "category_assignment_option_id_idx")
