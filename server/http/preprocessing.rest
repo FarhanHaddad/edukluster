@@ -59,8 +59,8 @@ Authorization: Bearer {{token}}
 POST {{baseUrl}}/preprocessing/integration
 Authorization: Bearer {{token}}
 
-### 10. Re-run Integrasi (Wajib 200; run lama -> SUPERSEDED, run BARU ACTIVE,
-# stage Cleaning+Transformasi+Reduksi RESET sesuai matriks V-4)
+### 10. Re-run Integrasi (Wajib 200; re-run integrasi pasca-COMPLETED tetap SUPERSEDED run lama,
+# run BARU ACTIVE, stage Cleaning+Transformasi+Reduksi RESET sesuai matriks V-4)
 POST {{baseUrl}}/preprocessing/integration
 Authorization: Bearer {{token}}
 
@@ -206,7 +206,7 @@ Authorization: Bearer {{token}}
 ### 31. Jalankan Reduksi (BE-PRE-4) — Gate: transformasi SELESAI (else 400 Bahasa Indonesia).
 # PROYEKSI murni transformed_data -> reduced_data: 25 fitur + siswa_periode_id; TANPA komputasi ulang.
 # Kolom identitas (Nama/Kelas/Jenis Kelamin) tidak ikut; NIS tetap sebagai META via join siswa_periode->siswa.
-# Re-run diizinkan: delete+insert satu transaksi. Sukses -> reduced_at + reduced_duration_ms terisi,
+# Re-run diizinkan: delete+insert satu transaksi (re-run reduksi pasca-COMPLETED WAJIB 200). Sukses -> reduced_at + reduced_duration_ms terisi,
 # reduced_invalidated_at DI-CLEAR, preprocessing_run.status = COMPLETED.
 # Response = shape pipeline-status terbaru (reduksi SELESAI, run.status COMPLETED).
 POST {{baseUrl}}/preprocessing/reduction/run
