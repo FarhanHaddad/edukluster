@@ -5,7 +5,7 @@ import InfoBanner from '../InfoBanner';
 import Button from '../../ui/Button';
 import Dialog from '../../ui/Dialog';
 import { formatAngka, formatWaktu } from '../../../lib/format';
-import { Play, RotateCcw, Lock, RefreshCw, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Play, RotateCcw, Lock, AlertTriangle, ArrowRight } from 'lucide-react';
 
 export default function ReduksiTab({
   periodeId,
@@ -21,7 +21,6 @@ export default function ReduksiTab({
 
   const isTransformCompleted = transformasiState === 'SELESAI';
   const isCompleted = stageData?.state === 'SELESAI';
-  const isReset = stageData?.state === 'RESET';
 
   const {
     data: summaryData,
@@ -29,7 +28,7 @@ export default function ReduksiTab({
     isError: isSummaryError,
     refetch: refetchSummary,
   } = useReductionSummary(periodeId, {
-    enabled: isTransformCompleted,
+    enabled: isTransformCompleted && isCompleted,
   });
 
   const runReductionMut = useRunReduction();
@@ -127,18 +126,6 @@ export default function ReduksiTab({
               Coba Lagi
             </Button>
           </div>
-        </div>
-      )}
-
-      {isReset && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-warning/50 bg-warning-tint/10 p-8 text-center">
-          <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-warning-tint text-warning">
-            <RefreshCw size={20} aria-hidden="true" />
-          </div>
-          <h3 className="text-sm font-semibold text-ink">Hasil reduksi di-reset</h3>
-          <p className="mt-1 max-w-md text-xs text-muted">
-            Perubahan pada tahap transformasi telah membatalkan hasil reduksi sebelumnya. Silakan jalankan ulang proses reduksi data.
-          </p>
         </div>
       )}
 

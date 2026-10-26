@@ -14,7 +14,7 @@ import Button from '../../ui/Button';
 import Dialog from '../../ui/Dialog';
 import Badge from '../../ui/Badge';
 import { formatAngka, formatTimestamp } from '../../../lib/format';
-import { Play, RotateCcw, Lock, RefreshCw, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Play, RotateCcw, Lock, AlertTriangle, AlertCircle } from 'lucide-react';
 
 export default function TransformasiTab({
   periodeId,
@@ -147,14 +147,6 @@ export default function TransformasiTab({
           <div><p className="text-xs text-muted">Durasi</p><p className="mt-1 font-mono text-sm font-semibold text-ink">{durationText}</p></div>
           <div><p className="text-xs text-muted">Dijalankan Oleh</p><p className="mt-1 text-sm font-semibold text-ink">{stageData?.adminUsername || '-'}</p></div>
           <div><p className="text-xs text-muted">Waktu</p><p className="mt-1 font-mono text-sm font-semibold text-ink">{formatTimestamp(stageData?.executedAt)}</p></div>
-        </div>
-      )}
-
-      {isResetState && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-warning/50 bg-warning-tint/10 p-8 text-center">
-          <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-warning-tint text-warning"><RefreshCw size={20} /></div>
-          <h3 className="text-sm font-semibold text-ink">Hasil transformasi di-reset</h3>
-          <p className="mt-1 max-w-md text-xs text-muted">Perubahan pada tahap cleaning telah membatalkan hasil transformasi dan reduksi sebelumnya. Silakan periksa kembali kamus bidang di bawah lalu jalankan ulang transformasi.</p>
         </div>
       )}
 
