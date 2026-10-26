@@ -210,271 +210,480 @@ Authorization: Bearer {{token}}
 // <========================== siswa.rest =================================>
 @baseUrl = http://localhost:5000/api
 
+### 0. Login (Wajib 200 + token)
 # @name login
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 { "username": "satnaing", "password": "widuri2026" }
 
-### 1. List Siswa (Wajib 200, items array + total/page/limit Number)
+### 1. Pipeline Status TANPA token (Wajib 401)
 @token = {{login.response.body.data.token}}
-GET {{baseUrl}}/siswa?page=1&limit=10
+GET {{baseUrl}}/preprocessing/pipeline-status
+
+### 2. Pipeline Status — empty state / run pertama (Wajib 200)
+# run=null bila belum pernah ada preprocessing_run (Frame PRE-1D empty state).
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{login.response.body.data.token}}
+
+### 3. Pipeline Status per periode eksplisit (200; ?periodeId=)
+GET {{baseUrl}}/preprocessing/pipeline-status?periodeId=1
 Authorization: Bearer {{token}}
 
-### 2. List Siswa Tanpa Token (Wajib 401)
-GET {{baseUrl}}/siswa
-
-### 3. Create Siswa Single Input Valid (Wajib 201, id Number + siswa_periode_id)
-POST {{baseUrl}}/siswa
+### 4. Source Preview rapor — raw values 18 mapel (Wajib 200; data: { total, page, limit, rows:[{nis,nama,values}] })
+# Kontrak BE-PRE-FIX-1: page int>=1 (default 1); limit int 1..1000 (default 100);
+# periodeId opsional (ada -> periode tsb, 404 bila tak ditemukan; tanpa -> periode AKTIF).
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=20
 Authorization: Bearer {{token}}
+
+### 5. Source Preview pts (limit maksimal 1000; periodeId opsional)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=pts&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 6. Source Preview pas (limit maksimal 1000; periodeId opsional)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=pas&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 7. Source Preview non_akademik (kosong tampil default "Tidak Ada"/"Tidak Mengikuti"; limit maks 1000, periodeId opsional)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=non_akademik&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 8. Source Preview jenis tidak valid (Wajib 400 validasi; catatan: limit=1001 juga Wajib 400 Zod, periodeId=9999 Wajib 404)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=salah
+Authorization: Bearer {{token}}
+
+### 8A. Source Preview limit maksimum (Wajib 200; BE-PRE-FIX-1 AC; cermin panggilan FE limit=1000)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=1000
+Authorization: Bearer {{token}}
+
+### 8B. Source Preview limit di atas maksimum (Wajib 400 validasi Zod; BE-PRE-FIX-1 AC)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=1001
+Authorization: Bearer {{token}}
+
+### 8C. Source Preview periodeId tidak ditemukan (Wajib 404 Bahasa Indonesia; BE-PRE-FIX-1 AC)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=20&periodeId=9999
+Authorization: Bearer {{token}}
+
+### 9. Jalankan Integrasi pada run AKTIF (Wajib 200; response = shape pipeline-status terbaru;
+# integrated_data terisi, integrated_at + integrated_duration_ms teraudit)
+POST {{baseUrl}}/preprocessing/integration
+Authorization: Bearer {{token}}
+
+### 10. Re-run Integrasi (Wajib 200; re-run integrasi pasca-COMPLETED tetap SUPERSEDED run lama,
+# run BARU ACTIVE, stage Cleaning+Transformasi+Reduksi RESET sesuai matriks V-4)
+POST {{baseUrl}}/preprocessing/integration
+Authorization: Bearer {{token}}
+
+### 11. Integrasi pada periode tanpa siswa (Wajib 422 pesan Bahasa Indonesia)
+# Ganti periodeId ke id periode yang belum ada siswanya.
+POST {{baseUrl}}/preprocessing/integration?periodeId=2
+Authorization: Bearer {{token}}
+
+### 12. Verifikasi badge pasca-integrasi (integrasi SELESAI, cleaning MENUNGGU, transformasi/reduksi TERKUNCI)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+### 13. Cleaning Config — distribusi raw non-akademik + mapping L1 (raw_value normKey, label, count total)
+# + statistik missing akademik (BE-PRE-2). Wajib 200; data: { imputationMethod, fields[7], academicMissing[18] }
+# Pra-syarat: jalankan Integrasi (#9) dulu agar integrated_data terisi.
+GET {{baseUrl}}/preprocessing/cleaning/config
+Authorization: Bearer {{token}}
+
+### 14. Cleaning Config per periode eksplisit
+GET {{baseUrl}}/preprocessing/cleaning/config?periodeId=1
+Authorization: Bearer {{token}}
+
+### 15. Jalankan Cleaning method MEAN + mapping L1 (Wajib 200; response = shape pipeline-status terbaru;
+# cleaned_data terisi (missing akademik = rata-rata GLOBAL), category_mapping run aktif ter-replace (raw_value=normKey),
+# transformed_invalidated_at & reduced_invalidated_at terisi, rows transformed/reduced TERHAPUS (V-4)).
+# Catatan Kasus 409 (Duplikat Mapping / P2002): Jika terjadi race condition submit ganda pada category_mapping,
+# Prisma P2002 ditangkap service dan dibungkus menjadi ApiError 409 Bahasa Indonesia:
+# "Konfigurasi mapping gagal disimpan: terdeteksi pemetaan ganda pada run ini. Silakan muat ulang konfigurasi dan ulangi."
+POST {{baseUrl}}/preprocessing/cleaning
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
-  "nis": "2431",
-  "nama": "Diah Utari",
-  "jenis_kelamin": "Perempuan",
-  "kelas": "XII-3",
-  "nilai": {
-    "rapor": {
-      "agama": 90, "pkn": 88, "b_indonesia": 85, "b_inggris": 82, "mtk_wajib": 78,
-      "sejarah": 80, "pjok": 92, "seni_rupa": 87, "b_jepang": 84, "biologi": 76,
-      "fisika": 74, "kimia": 72, "informatika": 95, "mtk_lanjut": 70, "geografi": 81,
-      "sosial": 83, "pkwu": 86, "ekonomi": 89
-    },
-    "pts": {
-      "agama": 89, "pkn": 87, "b_indonesia": 84, "b_inggris": 81, "mtk_wajib": 77,
-      "sejarah": 79, "pjok": 91, "seni_rupa": 86, "b_jepang": 83, "biologi": 75,
-      "fisika": 73, "kimia": 71, "informatika": 94, "mtk_lanjut": 69, "geografi": 80,
-      "sosial": 82, "pkwu": 85, "ekonomi": 88
-    },
-    "pas": {
-      "agama": 91, "pkn": 89, "b_indonesia": 86, "b_inggris": 83, "mtk_wajib": 79,
-      "sejarah": 81, "pjok": 93, "seni_rupa": 88, "b_jepang": 85, "biologi": 77,
-      "fisika": 75, "kimia": 73, "informatika": 96, "mtk_lanjut": 71, "geografi": 82,
-      "sosial": 84, "pkwu": 87, "ekonomi": 90
-    }
-  },
-  "non_akademik": {
-    "ekstrakurikuler": "Pramuka",
-    "prestasi": "Juara 2 OSN Informatika",
-    "kemampuan": "Programming",
-    "organisasi": "OSIS",
-    "kursus": "Bootcamp Web Dev",
-    "jurusan_1": "RPL",
-    "jurusan_2": "TI"
+  "imputationMethod": "mean",
+  "mappings": {
+    "jurusan_1": { "it": "Teknik Informatika", "si": "Sistem Informasi" },
+    "ekstrakurikuler": { "pram": "Pramuka" }
   }
 }
 
-### 4. Create Siswa NIS Duplikat (Wajib 409, 'NIS sudah terdaftar.')
-POST {{baseUrl}}/siswa
+### 16. Cleaning method MEDIAN tanpa perubahan mapping (mapping lama tetap tersimpan; Wajib 200)
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
 Authorization: Bearer {{token}}
+
+{ "imputationMethod": "median", "mappings": {} }
+
+### 17. Cleaning method MODE (Wajib 200; mode seri unik -> sel missing tetap null, didokumentasikan)
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "mode" }
+
+### 18. Cleaning dengan imputationMethod tidak valid (Wajib 400 Zod: "Metode imputasi harus mean, median, atau mode")
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "random" }
+
+### 19. Cleaning TANPA integrasi selesai (Wajib 400 Bahasa Indonesia; pakai periode yang belum di-integrasi)
+POST {{baseUrl}}/preprocessing/cleaning?periodeId=2
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "imputationMethod": "mean", "mappings": {} }
+
+### 20. Verifikasi badge pasca-cleaning (cleaning SELESAI; transformasi/reduksi TERKUNCI krn prasyarat blm SELESAI;
+# setelah re-run integration hilir akan tampil RESET sesuai matriks V-4)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+### 21. Transform Config — kamus bidang L2 + assignedValues + unmapped (standardValue=normKey, label, count total)
+# Lazy seed: GET config PERDANA menyisipkan seluruh KAMUS_BIDANG ke category_option periode ini
+# (cek: SELECT * FROM category_option WHERE periode_id=...). Pra-syarat: Cleaning SELESAI (#15),
+# else 400 Bahasa Indonesia. data: { fields[7]: { fieldName, options[{id,name,code,assignedValues}], unmapped[] } }
+GET {{baseUrl}}/preprocessing/transform/config
+Authorization: Bearer {{token}}
+
+### 22. Transform Config per periode eksplisit
+GET {{baseUrl}}/preprocessing/transform/config?periodeId=1
+Authorization: Bearer {{token}}
+
+### 23. Buat Bidang Kamus TANPA code -> code default = max(code)+1 per (periode,field) (Wajib 201;
+# TIDAK invalidate hilir — buat bidang tanpa assignment = no-op bagi transformed/reduced)
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "name": "Keagamaan" }
+
+### 24. Buat Bidang Kamus dengan code eksplisit (Wajib 201 selama unik per periode+field)
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "prestasi", "name": "Debat", "code": 6 }
+
+### 25. Duplikat name (periode,field,name) -> Wajib 422 Bahasa Indonesia
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "name": "Olahraga" }
+
+### 26. Duplikat code (periode,field,code) -> Wajib 422 Bahasa Indonesia (V-3: kode create-only,
+# ganti kode = DELETE #28 lalu POST lagi; TIDAK ada endpoint update)
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "name": "Bidang Baru", "code": 2 }
+
+### 27. Mapping L2: petakan nilai standar -> bidang (upsert unique periode+field+standard_value via normKey).
+# Ganti id option dgn id hasil #21 (data.fields[].options[].id).
+# JIKA transformed_data run aktif ADA -> invalidasi V-4: DELETE transformed+reduced,
+# kedua flag invalidated terisi -> badge Transformasi & Reduksi RESET (downstreamInvalidated=true).
+POST {{baseUrl}}/preprocessing/transform/assignments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "optionId": 2, "standardValues": ["Pramuka", "Olimpiade Matematika"] }
+
+### 28. Hapus Bidang Kamus (trash) -> assignment cascade hilang, nilai balik ke unmapped.
+# Ganti :id dengan id opsi riil dari #21. Jika transformed_data ada -> V-4 (kedua badge RESET).
+DELETE {{baseUrl}}/preprocessing/transform/options/3
+Authorization: Bearer {{token}}
+
+### 29. Jalankan Transformasi — Gate: cleaning SELESAI (else 400); unmapped kosong (else 422 + daftar unmapped di data.unmapped).
+# Encode 7 non-akademik via assignment->code, Min-Max 25 kolom Decimal(8,4) lintas seluruh siswa
+# (kolom konstan -> 0, ruling V-2). Re-run delete+insert satu transaksi. Sukses -> transformed_at +
+# transformed_duration_ms terisi, transformed_invalidated_at & reduced_invalidated_at DI-CLEAR
+# (Reduksi jadi MENUNGGU, bukan RESET). Response = shape pipeline-status terbaru.
+POST {{baseUrl}}/preprocessing/transform/run
+Authorization: Bearer {{token}}
+
+### 30. Verifikasi badge pasca-transformasi (transformasi SELESAI; reduksi MENUNGGU; oracle: bandingkan
+# transformed_data vs workbook sheet "Transformation Normalisasi" toleransi ±0.005 min 3 kolom)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+### 31. Jalankan Reduksi (BE-PRE-4) — Gate: transformasi SELESAI (else 400 Bahasa Indonesia).
+# PROYEKSI murni transformed_data -> reduced_data: 25 fitur + siswa_periode_id; TANPA komputasi ulang.
+# Kolom identitas (Nama/Kelas/Jenis Kelamin) tidak ikut; NIS tetap sebagai META via join siswa_periode->siswa.
+# Re-run diizinkan: delete+insert satu transaksi (re-run reduksi pasca-COMPLETED WAJIB 200). Sukses -> reduced_at + reduced_duration_ms terisi,
+# reduced_invalidated_at DI-CLEAR, preprocessing_run.status = COMPLETED.
+# Response = shape pipeline-status terbaru (reduksi SELESAI, run.status COMPLETED).
+POST {{baseUrl}}/preprocessing/reduction/run
+Authorization: Bearer {{token}}
+
+### 32. Reduksi tanpa transformasi selesai (Wajib 400 Bahasa Indonesia; pakai periode yang belum di-transform)
+POST {{baseUrl}}/preprocessing/reduction/run?periodeId=2
+Authorization: Bearer {{token}}
+
+### 33. Ringkasan Reduksi (Wajib 200; data: { barisDiproses, kolomDibuang:["Nama Siswa","Kelas","Jenis Kelamin"],
+# fiturFinal:"25 numerik + NIS (meta)", durasiMs, adminUsername, waktu }) — sumber: count reduced_data +
+# kolom audit run (reduced_at/duration/admin) + relasi admin. Cocokkan dgn kolom audit #31.
+GET {{baseUrl}}/preprocessing/reduction/summary
+Authorization: Bearer {{token}}
+
+### 34. Ringkasan Reduksi per periode eksplisit
+GET {{baseUrl}}/preprocessing/reduction/summary?periodeId=1
+Authorization: Bearer {{token}}
+
+### 35. Ringkasan Reduksi bila reduksi belum pernah jalan (Wajib 404 Bahasa Indonesia)
+GET {{baseUrl}}/preprocessing/reduction/summary?periodeId=2
+Authorization: Bearer {{token}}
+
+### 36. Verifikasi badge pasca-reduksi (reduksi SELESAI; run.status COMPLETED) + oracle proyeksi:
+# SELECT t.siswa_periode_id, t.mtk_wajib, r.mtk_wajib FROM transformed_data t JOIN reduced_data r
+#   ON r.transformed... (sama run & siswa_periode) -> selisih 0 utk spot-check 3 siswa;
+# reduced_data = 105 baris; TIDAK ada kolom nama/kelas/jenis_kelamin.
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+// <========================== preprocessing.rest =================================> 
+@baseUrl = http://localhost:5000/api
+
+### 0. Login (Wajib 200 + token)
+# @name login
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
+{ "username": "satnaing", "password": "widuri2026" }
+
+### 1. Pipeline Status TANPA token (Wajib 401)
+@token = {{login.response.body.data.token}}
+GET {{baseUrl}}/preprocessing/pipeline-status
+
+### 2. Pipeline Status — empty state / run pertama (Wajib 200)
+# run=null bila belum pernah ada preprocessing_run (Frame PRE-1D empty state).
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{login.response.body.data.token}}
+
+### 3. Pipeline Status per periode eksplisit (200; ?periodeId=)
+GET {{baseUrl}}/preprocessing/pipeline-status?periodeId=1
+Authorization: Bearer {{token}}
+
+### 4. Source Preview rapor — raw values 18 mapel (Wajib 200; data: { total, page, limit, rows:[{nis,nama,values}] })
+# Kontrak BE-PRE-FIX-1: page int>=1 (default 1); limit int 1..1000 (default 100);
+# periodeId opsional (ada -> periode tsb, 404 bila tak ditemukan; tanpa -> periode AKTIF).
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 5. Source Preview pts (limit maksimal 1000; periodeId opsional)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=pts&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 6. Source Preview pas (limit maksimal 1000; periodeId opsional)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=pas&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 7. Source Preview non_akademik (kosong tampil default "Tidak Ada"/"Tidak Mengikuti"; limit maks 1000, periodeId opsional)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=non_akademik&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### 8. Source Preview jenis tidak valid (Wajib 400 validasi; catatan: limit=1001 juga Wajib 400 Zod, periodeId=9999 Wajib 404)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=salah
+Authorization: Bearer {{token}}
+
+### 8A. Source Preview limit maksimum (Wajib 200; BE-PRE-FIX-1 AC; cermin panggilan FE limit=1000)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=1000
+Authorization: Bearer {{token}}
+
+### 8B. Source Preview limit di atas maksimum (Wajib 400 validasi Zod; BE-PRE-FIX-1 AC)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=1001
+Authorization: Bearer {{token}}
+
+### 8C. Source Preview periodeId tidak ditemukan (Wajib 404 Bahasa Indonesia; BE-PRE-FIX-1 AC)
+GET {{baseUrl}}/preprocessing/source-preview?jenis=rapor&page=1&limit=20&periodeId=9999
+Authorization: Bearer {{token}}
+
+### 9. Jalankan Integrasi pada run AKTIF (Wajib 200; response = shape pipeline-status terbaru;
+# integrated_data terisi, integrated_at + integrated_duration_ms teraudit)
+POST {{baseUrl}}/preprocessing/integration
+Authorization: Bearer {{token}}
+
+### 10. Re-run Integrasi (Wajib 200; re-run integrasi pasca-COMPLETED tetap SUPERSEDED run lama,
+# run BARU ACTIVE, stage Cleaning+Transformasi+Reduksi RESET sesuai matriks V-4)
+POST {{baseUrl}}/preprocessing/integration
+Authorization: Bearer {{token}}
+
+### 11. Integrasi pada periode tanpa siswa (Wajib 422 pesan Bahasa Indonesia)
+# Ganti periodeId ke id periode yang belum ada siswanya.
+POST {{baseUrl}}/preprocessing/integration?periodeId=2
+Authorization: Bearer {{token}}
+
+### 12. Verifikasi badge pasca-integrasi (integrasi SELESAI, cleaning MENUNGGU, transformasi/reduksi TERKUNCI)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+### 13. Cleaning Config — distribusi raw non-akademik + mapping L1 (raw_value normKey, label, count total)
+# + statistik missing akademik (BE-PRE-2). Wajib 200; data: { imputationMethod, fields[7], academicMissing[18] }
+# Pra-syarat: jalankan Integrasi (#9) dulu agar integrated_data terisi.
+GET {{baseUrl}}/preprocessing/cleaning/config
+Authorization: Bearer {{token}}
+
+### 14. Cleaning Config per periode eksplisit
+GET {{baseUrl}}/preprocessing/cleaning/config?periodeId=1
+Authorization: Bearer {{token}}
+
+### 15. Jalankan Cleaning method MEAN + mapping L1 (Wajib 200; response = shape pipeline-status terbaru;
+# cleaned_data terisi (missing akademik = rata-rata GLOBAL), category_mapping run aktif ter-replace (raw_value=normKey),
+# transformed_invalidated_at & reduced_invalidated_at terisi, rows transformed/reduced TERHAPUS (V-4)).
+# Catatan Kasus 409 (Duplikat Mapping / P2002): Jika terjadi race condition submit ganda pada category_mapping,
+# Prisma P2002 ditangkap service dan dibungkus menjadi ApiError 409 Bahasa Indonesia:
+# "Konfigurasi mapping gagal disimpan: terdeteksi pemetaan ganda pada run ini. Silakan muat ulang konfigurasi dan ulangi."
+POST {{baseUrl}}/preprocessing/cleaning
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
 {
-  "nis": "2101",
-  "nama": "Duplikat NIS",
-  "jenis_kelamin": "P",
-  "kelas": "XII-2",
-  "nilai": {
-    "rapor": {
-      "agama": 80, "pkn": 80, "b_indonesia": 80, "b_inggris": 80, "mtk_wajib": 80,
-      "sejarah": 80, "pjok": 80, "seni_rupa": 80, "b_jepang": 80, "biologi": 80,
-      "fisika": 80, "kimia": 80, "informatika": 80, "mtk_lanjut": 80, "geografi": 80,
-      "sosial": 80, "pkwu": 80, "ekonomi": 80
-    },
-    "pts": {
-      "agama": 80, "pkn": 80, "b_indonesia": 80, "b_inggris": 80, "mtk_wajib": 80,
-      "sejarah": 80, "pjok": 80, "seni_rupa": 80, "b_jepang": 80, "biologi": 80,
-      "fisika": 80, "kimia": 80, "informatika": 80, "mtk_lanjut": 80, "geografi": 80,
-      "sosial": 80, "pkwu": 80, "ekonomi": 80
-    },
-    "pas": {
-      "agama": 80, "pkn": 80, "b_indonesia": 80, "b_inggris": 80, "mtk_wajib": 80,
-      "sejarah": 80, "pjok": 80, "seni_rupa": 80, "b_jepang": 80, "biologi": 80,
-      "fisika": 80, "kimia": 80, "informatika": 80, "mtk_lanjut": 80, "geografi": 80,
-      "sosial": 80, "pkwu": 80, "ekonomi": 80
-    }
+  "imputationMethod": "mean",
+  "mappings": {
+    "jurusan_1": { "it": "Teknik Informatika", "si": "Sistem Informasi" },
+    "ekstrakurikuler": { "pram": "Pramuka" }
   }
 }
 
-### 5. Create Siswa Validasi Gagal — nama kosong (Wajib 400, errors per field)
-POST {{baseUrl}}/siswa
-Authorization: Bearer {{token}}
+### 16. Cleaning method MEDIAN tanpa perubahan mapping (mapping lama tetap tersimpan; Wajib 200)
+POST {{baseUrl}}/preprocessing/cleaning
 Content-Type: application/json
-
-{
-  "nis": "2102",
-  "nama": "",
-  "jenis_kelamin": "L",
-  "kelas": "XII-1",
-  "nilai": {
-    "rapor": {
-      "agama": 101, "pkn": 80, "b_indonesia": 80, "b_inggris": 80, "mtk_wajib": 80,
-      "sejarah": 80, "pjok": 80, "seni_rupa": 80, "b_jepang": 80, "biologi": 80,
-      "fisika": 80, "kimia": 80, "informatika": 80, "mtk_lanjut": 80, "geografi": 80,
-      "sosial": 80, "pkwu": 80, "ekonomi": 80
-    },
-    "pts": {},
-    "pas": {}
-  }
-}
-
-### 6. Detail Siswa (Wajib 200, nilai_akademik = { rapor, pts, pas } + non_akademik)
-# ⚠️ GANTI ANGKA '1' DI BAWAH DENGAN ID DARI RESPONSE NOMOR 3
-GET {{baseUrl}}/siswa/1
 Authorization: Bearer {{token}}
 
-### 7. Detail Siswa ID Ngawur (Wajib 404, 'Siswa tidak ditemukan.')
-GET {{baseUrl}}/siswa/999999
-Authorization: Bearer {{token}}
+{ "imputationMethod": "median", "mappings": {} }
 
-### 8. Update Siswa (Wajib 200, upsert nilai + non_akademik)
-# ⚠️ GANTI ANGKA '1' DI BAWAH DENGAN ID DARI RESPONSE NOMOR 3
-PUT {{baseUrl}}/siswa/1
-Authorization: Bearer {{token}}
+### 17. Cleaning method MODE (Wajib 200; mode seri unik -> sel missing tetap null, didokumentasikan)
+POST {{baseUrl}}/preprocessing/cleaning
 Content-Type: application/json
-
-{
-  "nama": "Farhan Haddad Updated",
-  "kelas": "XII-2",
-  "nilai": {
-    "rapor": {
-      "agama": 95, "pkn": 93, "b_indonesia": 90, "b_inggris": 88, "mtk_wajib": 85,
-      "sejarah": 87, "pjok": 96, "seni_rupa": 92, "b_jepang": 90, "biologi": 83,
-      "fisika": 81, "kimia": 80, "informatika": 99, "mtk_lanjut": 78, "geografi": 86,
-      "sosial": 89, "pkwu": 91, "ekonomi": 94
-    },
-    "pts": {
-      "agama": 94, "pkn": 92, "b_indonesia": 89, "b_inggris": 87, "mtk_wajib": 84,
-      "sejarah": 86, "pjok": 95, "seni_rupa": 91, "b_jepang": 89, "biologi": 82,
-      "fisika": 80, "kimia": 79, "informatika": 98, "mtk_lanjut": 77, "geografi": 85,
-      "sosial": 88, "pkwu": 90, "ekonomi": 93
-    },
-    "pas": {
-      "agama": 96, "pkn": 94, "b_indonesia": 91, "b_inggris": 89, "mtk_wajib": 86,
-      "sejarah": 88, "pjok": 97, "seni_rupa": 93, "b_jepang": 91, "biologi": 84,
-      "fisika": 82, "kimia": 81, "informatika": 100, "mtk_lanjut": 79, "geografi": 87,
-      "sosial": 90, "pkwu": 92, "ekonomi": 95
-    }
-  },
-  "non_akademik": {
-    "ekstrakurikuler": "PRAMUKA",
-    "prestasi": "Juara 1 OSN Informatika",
-    "kemampuan": "Public Speaking",
-    "organisasi": "Karang Taruna",
-    "kursus": "Bootcamp Data Science",
-    "jurusan_1": "SI",
-    "jurusan_2": "TI"
-  }
-}
-
-### 9. Delete Siswa (Wajib 200, 'Siswa berhasil dihapus.'; 409 bila sudah di-cluster)
-# ⚠️ GANTI ANGKA '1' DI BAWAH DENGAN ID DARI RESPONSE NOMOR 3
-DELETE {{baseUrl}}/siswa/1
 Authorization: Bearer {{token}}
 
-### 10. Delete Siswa ID Ngawur (Wajib 404, 'Siswa tidak ditemukan.')
-DELETE {{baseUrl}}/siswa/999999
-Authorization: Bearer {{token}}
+{ "imputationMethod": "mode" }
 
-### 11. List Siswa Search NIS (Wajib 200, hanya siswa dengan nis mengandung '2101')
-GET {{baseUrl}}/siswa?q=2101
-Authorization: Bearer {{token}}
-
-### 12. List Siswa Filter Kelas (Wajib 200, hanya kelas 'XII-1')
-GET {{baseUrl}}/siswa?kelas=XII-1
-Authorization: Bearer {{token}}
-
-### 15. List Siswa Sort Nama Ascending (Wajib 200, items urut nama A-Z lintas halaman)
-GET {{baseUrl}}/siswa?sort_by=nama&sort_order=asc
-Authorization: Bearer {{token}}
-
-### 16. List Siswa Sort NIS Descending (Wajib 200, items urut NIS besar-kecil)
-GET {{baseUrl}}/siswa?sort_by=nis&sort_order=desc
-Authorization: Bearer {{token}}
-
-### 17. List Siswa Sort Nama Desc + Pagination (Wajib 200, halaman 2 = lanjutan urutan Z-A)
-GET {{baseUrl}}/siswa?sort_by=nama&sort_order=desc&page=2&limit=10
-Authorization: Bearer {{token}}
-
-### 18. List Siswa Sort Ngawur (Wajib 400, errors per field sort_by/sort_order)
-GET {{baseUrl}}/siswa?sort_by=ngawur&sort_order=ngawur
-Authorization: Bearer {{token}}
-
-### 19. List Siswa Filter Source Excel Import (Wajib 200, hanya baris source_type 'excel_import')
-# Hotfix BE-SOURCE-FIX: enum query `source` = kode DB source_type apa adanya
-# ('single_input' | 'excel_import'); alias legacy 'excel' TIDAK berlaku lagi.
-GET {{baseUrl}}/siswa?source=excel_import
-Authorization: Bearer {{token}}
-
-### 20. List Siswa Filter Source Single Input (Wajib 200, hanya baris source_type 'single_input')
-GET {{baseUrl}}/siswa?source=single_input
-Authorization: Bearer {{token}}
-
-### 21. List Siswa Source Excel Import + Sort Nama Desc (Wajib 200, terfilter + terurut Z-A)
-GET {{baseUrl}}/siswa?source=excel_import&sort_by=nama&sort_order=desc
-Authorization: Bearer {{token}}
-
-### 22. List Siswa Source Ngawur (Wajib 400, errors per field source)
-GET {{baseUrl}}/siswa?source=ngawur
-Authorization: Bearer {{token}}
-
-### 13. Download Template Excel (Wajib 200, attachment template-import-siswa.xlsx, 4 sheet)
-GET {{baseUrl}}/siswa/template-excel
-Authorization: Bearer {{token}}
-
-### 14. Preview Import Excel (multipart field "file"; Wajib 200 preview JSON tanpa insert DB)
-# Bentuk rows[] per sheet (tiket B1 + perluasan BE-IMP-3 — tiap item HANYA menambah 2 field baru,
-# field lama row/nis/nama/kelas/status/keterangan tetap):
-#   {
-#     "row": 3, "nis": "20250002", "nama": "Bobi", "kelas": "XII-2",
-#     "status": "valid|missing|error", "keterangan": "...",
-#     "jenis_kelamin": "L"|"P"|null,   // hasil normalizeJenisKelamin dr SEL sheet ini; null bila kolom tak ada (PTS/PAS/NON-AKADEMIK), sel kosong, atau invalid
-#     "values": { ... }                // isi sel per sheet supaya FE render langsung dari rows (tanpa join previewData)
-#   }
-# Semantik values:
-#   - Sheet RAPOR/PTS/PAS : 18 key mapel (agama..ekonomi) -> number|null.
-#   - Sheet NON-AKADEMIK  : 7 key string (ekstrakurikuler, prestasi, kemampuan, organisasi, kursus, jurusan_1, jurusan_2).
-#   - Baris status valid/missing (juga error GLOBAL spt NIS dup/tidak ditemukan di sheet lain — selnya lolos validasi):
-#       nilai PASCA-normalisasi: akademik missing = null; non-akademik kosong = default D4
-#       ("Tidak Mengikuti","Tidak","Tidak Ada","Tidak","Tidak","Tidak Memilih","Tidak Memilih").
-#   - Baris dgn error LOKAL di sheet tsb (mis. nilai 150 / JK invalid / teks non-numerik):
-#       nilai RAW hasil parse (forensik: admin melihat sel penyebab error; non-akademik kosong => "").
-# Field lain TIDAK berubah: summary, sheets[].status, sheets[].errors, previewData, errors global, previewId.
-POST {{baseUrl}}/siswa/import-excel/preview
-Authorization: Bearer {{token}}
-Content-Type: multipart/form-data; boundary=boundary
-
---boundary
-Content-Disposition: form-data; name="file"; filename="data-siswa.xlsx"
-Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-
-<< ./data-siswa.xlsx
---boundary--
-
-### 15. Confirm Import Excel — mass insert transaksional (Wajib 201 "Import berhasil.";
-# previewId diambil dari response preview (nomor 14). Baris error -> rejectedRows, tidak diinsert.
-# Cache terhapus pasca-sukses: confirm kedua dengan previewId sama -> wajib 404.
-POST {{baseUrl}}/siswa/import-excel/confirm
-Authorization: Bearer {{token}}
+### 18. Cleaning dengan imputationMethod tidak valid (Wajib 400 Zod: "Metode imputasi harus mean, median, atau mode")
+POST {{baseUrl}}/preprocessing/cleaning
 Content-Type: application/json
-
-{
-  "previewId": "GANTI-DENGAN-previewId-DARI-RESPONSE-PREVIEW"
-}
-
-### 16. Confirm Import — previewId ngawur/kedaluwarsa (Wajib 404, pesan upload ulang)
-POST {{baseUrl}}/siswa/import-excel/confirm
 Authorization: Bearer {{token}}
+
+{ "imputationMethod": "random" }
+
+### 19. Cleaning TANPA integrasi selesai (Wajib 400 Bahasa Indonesia; pakai periode yang belum di-integrasi)
+POST {{baseUrl}}/preprocessing/cleaning?periodeId=2
 Content-Type: application/json
-
-{
-  "previewId": "id-yang-tidak-ada-di-cache"
-}
-
-### 17. Confirm Import — body invalid tanpa previewId (Wajib 400 validasi Zod)
-POST {{baseUrl}}/siswa/import-excel/confirm
 Authorization: Bearer {{token}}
-Content-Type: application/json
 
-{ }
+{ "imputationMethod": "mean", "mappings": {} }
+
+### 20. Verifikasi badge pasca-cleaning (cleaning SELESAI; transformasi/reduksi TERKUNCI krn prasyarat blm SELESAI;
+# setelah re-run integration hilir akan tampil RESET sesuai matriks V-4)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+### 21. Transform Config — kamus bidang L2 + assignedValues + unmapped (standardValue=normKey, label, count total)
+# Lazy seed: GET config PERDANA menyisipkan seluruh KAMUS_BIDANG ke category_option periode ini
+# (cek: SELECT * FROM category_option WHERE periode_id=...). Pra-syarat: Cleaning SELESAI (#15),
+# else 400 Bahasa Indonesia. data: { fields[7]: { fieldName, options[{id,name,code,assignedValues}], unmapped[] } }
+GET {{baseUrl}}/preprocessing/transform/config
+Authorization: Bearer {{token}}
+
+### 22. Transform Config per periode eksplisit
+GET {{baseUrl}}/preprocessing/transform/config?periodeId=1
+Authorization: Bearer {{token}}
+
+### 23. Buat Bidang Kamus TANPA code -> code default = max(code)+1 per (periode,field) (Wajib 201;
+# TIDAK invalidate hilir — buat bidang tanpa assignment = no-op bagi transformed/reduced)
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "name": "Keagamaan" }
+
+### 24. Buat Bidang Kamus dengan code eksplisit (Wajib 201 selama unik per periode+field)
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "prestasi", "name": "Debat", "code": 6 }
+
+### 25. Duplikat name (periode,field,name) -> Wajib 422 Bahasa Indonesia
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "name": "Olahraga" }
+
+### 26. Duplikat code (periode,field,code) -> Wajib 422 Bahasa Indonesia (V-3: kode create-only,
+# ganti kode = DELETE #28 lalu POST lagi; TIDAK ada endpoint update)
+POST {{baseUrl}}/preprocessing/transform/options
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "name": "Bidang Baru", "code": 2 }
+
+### 27. Mapping L2: petakan nilai standar -> bidang (upsert unique periode+field+standard_value via normKey).
+# Ganti id option dgn id hasil #21 (data.fields[].options[].id).
+# JIKA transformed_data run aktif ADA -> invalidasi V-4: DELETE transformed+reduced,
+# kedua flag invalidated terisi -> badge Transformasi & Reduksi RESET (downstreamInvalidated=true).
+POST {{baseUrl}}/preprocessing/transform/assignments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "fieldName": "ekstrakurikuler", "optionId": 2, "standardValues": ["Pramuka", "Olimpiade Matematika"] }
+
+### 28. Hapus Bidang Kamus (trash) -> assignment cascade hilang, nilai balik ke unmapped.
+# Ganti :id dengan id opsi riil dari #21. Jika transformed_data ada -> V-4 (kedua badge RESET).
+DELETE {{baseUrl}}/preprocessing/transform/options/3
+Authorization: Bearer {{token}}
+
+### 29. Jalankan Transformasi — Gate: cleaning SELESAI (else 400); unmapped kosong (else 422 + daftar unmapped di data.unmapped).
+# Encode 7 non-akademik via assignment->code, Min-Max 25 kolom Decimal(8,4) lintas seluruh siswa
+# (kolom konstan -> 0, ruling V-2). Re-run delete+insert satu transaksi. Sukses -> transformed_at +
+# transformed_duration_ms terisi, transformed_invalidated_at & reduced_invalidated_at DI-CLEAR
+# (Reduksi jadi MENUNGGU, bukan RESET). Response = shape pipeline-status terbaru.
+POST {{baseUrl}}/preprocessing/transform/run
+Authorization: Bearer {{token}}
+
+### 30. Verifikasi badge pasca-transformasi (transformasi SELESAI; reduksi MENUNGGU; oracle: bandingkan
+# transformed_data vs workbook sheet "Transformation Normalisasi" toleransi ±0.005 min 3 kolom)
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
+### 31. Jalankan Reduksi (BE-PRE-4) — Gate: transformasi SELESAI (else 400 Bahasa Indonesia).
+# PROYEKSI murni transformed_data -> reduced_data: 25 fitur + siswa_periode_id; TANPA komputasi ulang.
+# Kolom identitas (Nama/Kelas/Jenis Kelamin) tidak ikut; NIS tetap sebagai META via join siswa_periode->siswa.
+# Re-run diizinkan: delete+insert satu transaksi (re-run reduksi pasca-COMPLETED WAJIB 200). Sukses -> reduced_at + reduced_duration_ms terisi,
+# reduced_invalidated_at DI-CLEAR, preprocessing_run.status = COMPLETED.
+# Response = shape pipeline-status terbaru (reduksi SELESAI, run.status COMPLETED).
+POST {{baseUrl}}/preprocessing/reduction/run
+Authorization: Bearer {{token}}
+
+### 32. Reduksi tanpa transformasi selesai (Wajib 400 Bahasa Indonesia; pakai periode yang belum di-transform)
+POST {{baseUrl}}/preprocessing/reduction/run?periodeId=2
+Authorization: Bearer {{token}}
+
+### 33. Ringkasan Reduksi (Wajib 200; data: { barisDiproses, kolomDibuang:["Nama Siswa","Kelas","Jenis Kelamin"],
+# fiturFinal:"25 numerik + NIS (meta)", durasiMs, adminUsername, waktu }) — sumber: count reduced_data +
+# kolom audit run (reduced_at/duration/admin) + relasi admin. Cocokkan dgn kolom audit #31.
+GET {{baseUrl}}/preprocessing/reduction/summary
+Authorization: Bearer {{token}}
+
+### 34. Ringkasan Reduksi per periode eksplisit
+GET {{baseUrl}}/preprocessing/reduction/summary?periodeId=1
+Authorization: Bearer {{token}}
+
+### 35. Ringkasan Reduksi bila reduksi belum pernah jalan (Wajib 404 Bahasa Indonesia)
+GET {{baseUrl}}/preprocessing/reduction/summary?periodeId=2
+Authorization: Bearer {{token}}
+
+### 36. Verifikasi badge pasca-reduksi (reduksi SELESAI; run.status COMPLETED) + oracle proyeksi:
+# SELECT t.siswa_periode_id, t.mtk_wajib, r.mtk_wajib FROM transformed_data t JOIN reduced_data r
+#   ON r.transformed... (sama run & siswa_periode) -> selisih 0 utk spot-check 3 siswa;
+# reduced_data = 105 baris; TIDAK ada kolom nama/kelas/jenis_kelamin.
+GET {{baseUrl}}/preprocessing/pipeline-status
+Authorization: Bearer {{token}}
+
