@@ -1,11 +1,12 @@
 // Engine K-Means Lloyd murni (tanpa Prisma/HTTP) - TIKET BE-KM-1.
-// Seed centroid & urutan fitur DIIMPOR dari kmeans.seed.js (DILARANG duplikat).
+// Index baris seed & urutan fitur DIIMPOR dari kmeans.seed.js (DILARANG duplikat/hardcode angka).
 // Internal float64; konversi Decimal(8,4) HALF_UP hanya di lapisan DBI.
 // Refactor readability BE-KM-1.5: tanpa variabel 1 huruf, ZERO perubahan logika.
+// Refactor seed BE-KM-1.6: centroid awal DIEKSTRAK DINAMIS dari baris dataset (anti precision drift).
 
 'use strict';
 
-const { SEED_CENTROIDS, FEATURE_ORDER } = require('./kmeans.seed');
+const { SEED_ROW_INDICES, FEATURE_ORDER } = require('./kmeans.seed');
 
 const DIM = FEATURE_ORDER.length; // 25
 
@@ -54,24 +55,51 @@ function nearestCentroid(featureVector, centroids) {
 }
 
 /**
+ * Ekstraksi centroid awal secara DINAMIS dari baris dataset (BE-KM-1.6).
+ * Mencegah "precision drift": TIDAK ada angka hardcoded, vektor siswa dibaca
+ * langsung dari rows via toVector() lalu di-clone.
+ * @param {Array<Array<number>|Object>} vectors daftar vektor fitur seluruh baris.
+ * @param {number[]} seedRowIndices index baris 1-based (urutan siswa ke-N).
+ * @returns {number[][]} matriks centroid awal (clone dari vektor dataset).
+ */
+function extractSeedCentroids(vectors, seedRowIndices) {
+  return seedRowIndices.map((oneBasedIndex) => {
+    const zeroBasedIndex = oneBasedIndex - 1;
+    if (!Number.isInteger(zeroBasedIndex) || zeroBasedIndex < 0 || zeroBasedIndex >= vectors.length) {
+      throw new Error(`seed row index ${oneBasedIndex} (1-based) out-of-bounds: dataset hanya ${vectors.length} baris`);
+    }
+    return vectors[zeroBasedIndex].slice();
+  });
+}
+
+/**
  * Lloyd murni deterministik.
  * @param {Array<Array<number>|Object>} rows titik data (fitur sesuai FEATURE_ORDER).
- * @param {{k?:number, maxIter?:number, seed?:number[][]}} opts
- *        k = totalClusters (default panjang seed), maxIter default 50, seed default SEED_CENTROIDS.
+ * @param {{k?:number, maxIter?:number, seedIndices?:number[], customSeedMatrix?:number[][]}} opts
+ *        k = totalClusters (default panjang seed), maxIter default 50,
+ *        seedIndices = index baris 1-based sumber centroid (default SEED_ROW_INDICES),
+ *        customSeedMatrix = matriks seed eksplisit (khusus injeksi unit test; menang atas seedIndices).
  * @returns iterations[{number(0-based), assignments, moves, centroids}], finalAssignments,
  *          distances, distribution[totalClusters], converged, convergedAt.
  */
 function runKMeans(rows, opts = {}) {
-  const totalClusters = opts.k ?? SEED_CENTROIDS.length;
   const maxIter = opts.maxIter ?? 50;
-  const seed = opts.seed ?? SEED_CENTROIDS;
-  if (!Number.isInteger(totalClusters) || totalClusters < 1 || totalClusters > seed.length) {
-    throw new Error('k tidak valid');
-  }
+  const seedRowIndices = opts.seedIndices ?? SEED_ROW_INDICES;
   if (!Array.isArray(rows) || rows.length === 0) throw new Error('rows kosong');
 
   const vectors = rows.map(toVector);
-  let centroids = seed.slice(0, totalClusters).map((seedRow) => seedRow.slice());
+  // Inisialisasi centroid: matrix custom (test) -> pakai apa adanya;
+  // selain itu -> ekstrak dinamis dari baris dataset pada seedRowIndices.
+  const seedCentroids = opts.customSeedMatrix !== undefined
+    ? opts.customSeedMatrix.map((seedRow) => seedRow.slice())
+    : extractSeedCentroids(vectors, seedRowIndices);
+
+  const totalClusters = opts.k ?? seedCentroids.length;
+  if (!Number.isInteger(totalClusters) || totalClusters < 1 || totalClusters > seedCentroids.length) {
+    throw new Error('k tidak valid');
+  }
+
+  let centroids = seedCentroids.slice(0, totalClusters).map((seedRow) => seedRow.slice());
   let prevAssign = null;
   let lastDistances = [];
   const iterations = [];
