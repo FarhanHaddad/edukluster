@@ -2,19 +2,20 @@
 // DBI = (1/k) * Σ_i max_{i≠j} (S_i + S_j) / d(i,j)
 // S_i = rata-rata jarak Euclidean anggota cluster i ke centroid sendiri.
 // Return string Decimal(8,4) HALF_UP (konvensi presisi repo; internal float64).
+// Refactor readability BE-KM-1.5: tanpa variabel 1 huruf, rumus identik secara matematis.
 
 'use strict';
 
 const { euclid } = require('./kmeans.engine');
 
-// Pembulatan HALF_UP eksplisit pada n desimal (bukan toFixed yang banker-ish utk kasus tertentu).
-function roundHalfUp(value, digits) {
+// Pembulatan HALF_UP eksplisit pada decimalPlaces desimal (bukan toFixed yang banker-ish).
+function roundHalfUp(value, decimalPlaces) {
   if (!Number.isFinite(value)) return null;
-  const factor = 10 ** digits;
+  const factor = 10 ** decimalPlaces;
   // Geser, tambah epsilon kecil untuk koreksi float, lalu Math.round (half-up utk nilai positif).
   const scaled = value * factor;
   const rounded = Math.round(scaled + Number.EPSILON * Math.abs(scaled));
-  return (rounded / factor).toFixed(digits);
+  return (rounded / factor).toFixed(decimalPlaces);
 }
 
 /**
@@ -24,44 +25,51 @@ function roundHalfUp(value, digits) {
  *          (mis. semua cluster kosong / kurang dari 2 cluster terisi berjarak nol).
  */
 function computeDBI(clusters, centroids) {
-  const k = centroids.length;
-  if (!Array.isArray(clusters) || clusters.length !== k) throw new Error('clusters != centroids');
+  const totalClusters = centroids.length;
+  if (!Array.isArray(clusters) || clusters.length !== totalClusters) {
+    throw new Error('clusters != centroids');
+  }
 
-  // S_i: scatter/rata-rata jarak intra-cluster; hanya cluster terisi yang dihitung.
-  const scatter = new Array(k).fill(0);
-  for (let i = 0; i < k; i++) {
-    const members = clusters[i];
-    if (members.length > 0) {
-      let sum = 0;
-      for (const p of members) sum += euclid(p, centroids[i]);
-      scatter[i] = sum / members.length;
+  // intraClusterDistance[i]: scatter/rata-rata jarak intra-cluster; hanya cluster terisi dihitung.
+  const intraClusterDistance = new Array(totalClusters).fill(0);
+  for (let clusterIndex = 0; clusterIndex < totalClusters; clusterIndex++) {
+    const members = clusters[clusterIndex];
+    const memberCount = members.length;
+    if (memberCount > 0) {
+      let distanceSum = 0;
+      for (const memberPoint of members) distanceSum += euclid(memberPoint, centroids[clusterIndex]);
+      intraClusterDistance[clusterIndex] = distanceSum / memberCount;
     }
   }
 
-  let total = 0;
-  let counted = 0;
-  for (let i = 0; i < k; i++) {
-    if (clusters[i].length === 0) continue; // cluster kosong tak ikut rasio
-    let worst = 0;
-    let found = false;
-    for (let j = 0; j < k; j++) {
-      if (j === i || clusters[j].length === 0) continue;
-      const dij = euclid(centroids[i], centroids[j]);
-      if (dij === 0) continue; // centroid kembar -> rasio tak terdefinisi, lewati
-      const ratio = (scatter[i] + scatter[j]) / dij;
-      if (!found || ratio > worst) {
-        worst = ratio;
-        found = true;
+  let ratioTotal = 0;
+  let countedClusters = 0;
+  for (let firstClusterIndex = 0; firstClusterIndex < totalClusters; firstClusterIndex++) {
+    if (clusters[firstClusterIndex].length === 0) continue; // cluster kosong tak ikut rasio
+    let worstRatio = 0;
+    let foundPair = false;
+    for (let secondClusterIndex = 0; secondClusterIndex < totalClusters; secondClusterIndex++) {
+      if (secondClusterIndex === firstClusterIndex || clusters[secondClusterIndex].length === 0) {
+        continue;
+      }
+      const interClusterDistance = euclid(centroids[firstClusterIndex], centroids[secondClusterIndex]);
+      if (interClusterDistance === 0) continue; // centroid kembar -> rasio tak terdefinisi, lewati
+      const closenessRatio =
+        (intraClusterDistance[firstClusterIndex] + intraClusterDistance[secondClusterIndex]) /
+        interClusterDistance;
+      if (!foundPair || closenessRatio > worstRatio) {
+        worstRatio = closenessRatio;
+        foundPair = true;
       }
     }
-    if (found) {
-      total += worst;
-      counted++;
+    if (foundPair) {
+      ratioTotal += worstRatio;
+      countedClusters++;
     }
   }
 
-  if (counted === 0) return null;
-  return roundHalfUp(total / counted, 4);
+  if (countedClusters === 0) return null;
+  return roundHalfUp(ratioTotal / countedClusters, 4);
 }
 
 module.exports = { computeDBI, roundHalfUp };
