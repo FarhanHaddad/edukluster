@@ -94,6 +94,24 @@ const resE = runKMeans(rowsE, { k: 3, maxIter: 3, customSeedMatrix: seedE });
 check('E.converged=false', resE.converged === false, `converged=${resE.converged}`);
 check('E.iterations<=4', resE.iterations.length <= 4, `len=${resE.iterations.length}`);
 
+// ================= FIXTURE F: rezim presisi 4 desimal R-KM-36 (BE-KM-2 R4) =================
+// rows [[0],[1],[3]] k=1 seedIndices [1] -> iterasi 0 moves=3; centroid update = mean(0,1,3)=1.3333
+// dibulatkan HALF_UP 4 dp SEBELUM dipakai (round-before-use); distances output semua 4 desimal.
+const rowsF = [pad([0], BASE25), pad([1], BASE25), pad([3], BASE25)];
+const resF = runKMeans(rowsF, { k: 1, maxIter: 50, seedIndices: [1] });
+check('F.iter0.moves=3', resF.iterations[0].moves === 3, `moves=${resF.iterations[0].moves}`);
+check('F.iter1.centroid=1.3333 (round-before-use)',
+  resF.iterations[1] && resF.iterations[1].centroids[0][0] === 1.3333,
+  `c=${resF.iterations[1] ? resF.iterations[1].centroids[0][0] : 'N/A'}`);
+const allFourDecimals = resF.distances.every((distanceValue) => {
+  const asString = String(distanceValue);
+  const dotIndex = asString.indexOf('.');
+  return dotIndex === -1 || asString.length - dotIndex - 1 <= 4;
+});
+check('F.distances<=4dp', allFourDecimals === true, JSON.stringify(resF.distances));
+check('F.convergedAt=1', resF.converged === true && resF.convergedAt === 1,
+  `converged=${resF.converged} at=${resF.convergedAt}`);
+
 // ================= RINGKASAN =================
 console.log(`\n${failures === 0 ? 'ALL PASS' : failures + ' FAILURE(S)'}`);
 process.exit(failures === 0 ? 0 : 1);

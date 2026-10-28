@@ -1,6 +1,10 @@
 // Engine K-Means Lloyd murni (tanpa Prisma/HTTP) - TIKET BE-KM-1.
 // Index baris seed & urutan fitur DIIMPOR dari kmeans.seed.js (DILARANG duplikat/hardcode angka).
-// Internal float64; konversi Decimal(8,4) HALF_UP hanya di lapisan DBI.
+// Rezim presisi R-KM-36 (TIKET BE-KM-2 R4): setiap koordinat centroid hasil UPDATE dibulatkan
+// HALF_UP 4 desimal SEBELUM dipakai iterasi berikutnya dan sebelum dikembalikan; jarak dihitung
+// presisi penuh dari operand 4-desimal lalu dibulatkan 4 desimal pada output distances;
+// seed = baris tersimpan apa adanya; DILARANG rounding di tengah akumulasi mean (bulatkan hanya
+// di batas: setelah pembagian rata-rata selesai).
 // Refactor readability BE-KM-1.5: tanpa variabel 1 huruf, ZERO perubahan logika.
 // Refactor seed BE-KM-1.6: centroid awal DIEKSTRAK DINAMIS dari baris dataset (anti precision drift).
 
@@ -9,6 +13,14 @@
 const { SEED_ROW_INDICES, FEATURE_ORDER } = require('./kmeans.seed');
 
 const DIM = FEATURE_ORDER.length; // 25
+
+// Bulatkan HALF_UP ke 4 desimal (rezim R-KM-36). Epsilon EPSILON*|scaled| mengoreksi
+// representasi biner float (mis. 0.1505*10^4 -> 1504.9999...) agar tepat setengah naik.
+function round4(value) {
+  if (!Number.isFinite(value)) return value;
+  const scaled = value * 10000;
+  return Math.round(scaled + Number.EPSILON * Math.abs(scaled)) / 10000;
+}
 
 /**
  * Jarak Euclidean antar dua vektor berdimensi sama.
@@ -113,7 +125,8 @@ function runKMeans(rows, opts = {}) {
     for (let pointIndex = 0; pointIndex < vectors.length; pointIndex++) {
       const nearest = nearestCentroid(vectors[pointIndex], centroids);
       assignments[pointIndex] = nearest.code;
-      distances[pointIndex] = nearest.dist;
+      // Jarak: presisi penuh dari operand 4-desimal, dibulatkan HALF_UP 4 desimal di output.
+      distances[pointIndex] = round4(nearest.dist);
     }
     // MOVES vs assignment sebelumnya (iterasi 0: semua baris dianggap pindah).
     const moves = prevAssign === null
@@ -152,7 +165,9 @@ function runKMeans(rows, opts = {}) {
       memberCounts[clusterIndex] === 0
         ? oldCentroid.slice()
         : coordinateSums[clusterIndex].map((coordinateSum) =>
-            coordinateSum / memberCounts[clusterIndex]));
+            // Batas round-before-use (R-KM-36): akumulasi mean presisi penuh,
+            // pembulatan HALF_UP 4 dp HANYA setelah pembagian selesai.
+            round4(coordinateSum / memberCounts[clusterIndex])));
   }
 
   const lastIteration = iterations[iterations.length - 1];
@@ -169,4 +184,4 @@ function runKMeans(rows, opts = {}) {
   };
 }
 
-module.exports = { runKMeans, euclid, nearestCentroid };
+module.exports = { runKMeans, euclid, nearestCentroid, round4 };
