@@ -5,6 +5,7 @@ const dashboardRoutes = require('./dashboard.routes');
 const adminRoutes = require('./admin.routes');
 const siswaRoutes = require('./siswa.routes');
 const preprocessingRoutes = require('./preprocessing.routes');
+const kmeansRoutes = require('./kmeans.routes');
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/admins', adminRoutes);
 router.use('/siswa', siswaRoutes);
 router.use('/preprocessing', preprocessingRoutes);
+router.use('/kmeans', kmeansRoutes);
 
 module.exports = router;

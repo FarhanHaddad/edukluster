@@ -19,6 +19,37 @@ Alur: Request -> middleware -> routes -> controller -> service -> Prisma -> MySQ
 - SYNC RULE (kontrak FE↔BE): file .rest = sumber kebenaran URL. Hook/lib FE WAJIB memanggil path yang sama persis dengan request di .rest. Setiap tiket yang menambah/mengubah endpoint BE wajib update file .rest terkait di commit yang sama + menyebutnya di laporan.
 - REGRESSION RULE: sebelum PR di-merge, Owner menjalankan semua blok file .rest fitur tersebut.
 
+## REST CLIENT FILE GRAMMAR (file server/http/*.rest)
+
+Ekspansi operasional dari bagian "REST Client Collections" di atas (tidak mengubah aturan lama).
+Diagram zona satu blok request (contoh nyata: kmeans.rest):
+
+```
+@baseUrl = http://localhost:5000/api      <- ZONA VARIABEL GLOBAL (sebelum method line pertama)
+
+### 3. GET /kmeans/runs/latest — ...      <- judul: penomoran + komentar ekspektasi status
+# Shape data: { ... }                     <- komentar kontrak response (wajib utk GET read-model)
+GET {{baseUrl}}/kmeans/runs/latest?periodeId=1   <- METHOD LINE (pembuka zona header)
+Authorization: Bearer {{token}}           <- ZONA HEADER (baris `Key: value`, setelah method line)
+                                          <- baris kosong = pemisah header/body
+{ "key": "value" }                        <- ZONA BODY = baris TERAKHIR blok, tepat sebelum ### berikutnya
+```
+
+Aturan:
+- ZONA VARIABEL (`@baseUrl`, `@token = {{login.response.body.data.token}}`): WAJIB berada SEBELUM
+  method line; deklarasi `@token` hanya boleh di blok login/awal file (baris setelah body JSON login),
+  bukan di dalam zona body request lain. DILARANG menaruh baris `@token = ...` (atau variabel apa pun)
+  di dalam zona body — REST Client memaknainya sebagai isi body, bukan deklarasi variabel.
+- Penomoran request wajib berurutan (`### 0.` login, lalu `### 1.` dst.) dengan komentar ekspektasi
+  status code + tujuan, mis. `(Wajib 200; ...)`, `(Wajib 409 Bahasa Indonesia)`; kasus error diberi
+  nomor sendiri (mis. `### 8A/8B/8C`) supaya bisa dijalankan sekuensial.
+- Zona body = baris terakhir sebelum `###` berikutnya; header selalu baris `Key: value` langsung
+  setelah method line. Response chaining hanya lewat `{{nama.response.body...}}`.
+- Pointer SYNC RULE: setiap perubahan shape response service yang didokumentasikan di komentar blok
+  (mis. field baru `features`, `summary.k`, `summary.totalStudents`, `iterations[].isConverged` pada
+  blok 3 kmeans.rest) WAJIB didokumentasikan ulang di file .rest terkait pada commit yang sama —
+  lihat SYNC RULE di bagian "REST Client Collections" di atas.
+
 ## Aturan File
 - Naming: x.routes.js, x.controller.js, x.service.js, x.validation.js
 - Controller <= ~100 baris; Service <= ~200 baris; lebih = pecah per domain.

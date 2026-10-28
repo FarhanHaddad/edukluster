@@ -24,6 +24,13 @@ DELETE FROM category_assignment;
 DELETE FROM category_option;
 DELETE FROM preprocessing_run;
 
+-- ========== TIER 2: Reset Artefak K-Means (Preprocessing TETAP AMAN) ==========
+DELETE FROM cluster_result;
+DELETE FROM cluster_assignment;
+DELETE FROM centroid;
+DELETE FROM kmeans_iteration;
+DELETE FROM kmeans_run;
+
 -- ========== POST-CHECK (semua wajib 0) ==========
 SELECT
   (SELECT COUNT(*) FROM preprocessing_run)   AS run,
