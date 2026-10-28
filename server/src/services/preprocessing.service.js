@@ -222,7 +222,8 @@ async function assemblePipelineStatus(periode, adminInfo) {
       prisma.cleaned_data.count({ where: { preprocessing_run_id: runIdBigInt } }),
       prisma.transformed_data.count({ where: { preprocessing_run_id: runIdBigInt } }),
       prisma.reduced_data.count({ where: { preprocessing_run_id: runIdBigInt } }),
-      prisma.kmeans_run.count({ where: { preprocessing_run_id: runIdBigInt, status: 'ACTIVE' } }),
+      // R-KM-31: lock K-Means DERIVED dari eksistensi run COMPLETED (bukan kolom; bukan ACTIVE).
+      prisma.kmeans_run.count({ where: { preprocessing_run_id: runIdBigInt, status: RUN_STATUS.COMPLETED } }),
       prisma.admin.findUnique({ where: { id: run.admin_id }, select: { username: true } }),
     ]);
 

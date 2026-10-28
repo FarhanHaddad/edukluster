@@ -261,6 +261,7 @@ model kmeans_run {
   status               String?            @db.VarChar(20)
   total_iteration      Int?
   converged            Boolean?
+  dbi_score            Decimal?           @db.Decimal(12, 8)
   started_at           DateTime?          @db.DateTime(0)
   completed_at         DateTime?          @db.DateTime(0)
   created_at           DateTime?          @db.Timestamp(0)
