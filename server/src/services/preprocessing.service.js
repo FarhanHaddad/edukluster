@@ -111,6 +111,29 @@ async function findLatestRun(periodeIdBigInt) {
   });
 }
 
+// ===== R-KM-39 Guard re-run preprocessing sotto lock K-Means.
+// Derivasi lock SATU-SATUNYA: eksistensi kmeans_run status COMPLETED pada run preprocessing
+// milik periode target — persis sama dgn derivasi badge lockedByKmeans di assemblePipelineStatus
+// dan findCompletedRun di sisi service K-Means (tidak ada kolom lock fisik; tanpa enum DB baru).
+async function findCompletedKmeansRun(periodeIdBigInt) {
+  return prisma.kmeans_run.findFirst({
+    where: { preprocessing_run: { periode_id: periodeIdBigInt }, status: RUN_STATUS.COMPLETED },
+    orderBy: [{ completed_at: 'desc' }, { id: 'desc' }],
+  });
+}
+
+// Entry point POST cleaning/transform/run/reduction/run: periode terkunci hasil K-Means ->
+// ApiError 409 Bahasa Indonesia (pesan kontrak tiket; reset hasil K-Means = prasyarat re-run).
+async function assertPeriodeNotLockedByKmeans(periodeIdBigInt) {
+  const completed = await findCompletedKmeansRun(periodeIdBigInt);
+  if (completed) {
+    throw new ApiError(
+      409,
+      'Periode terkunci oleh hasil K-Means; reset hasil K-Means terlebih dahulu.'
+    );
+  }
+}
+
 // Helper resolveCurrentRun = findLatestRun (run TERBARU per periode TANPA filter status)
 const resolveCurrentRun = findLatestRun;
 
@@ -605,6 +628,9 @@ async function runCleaning(body, adminInfo, query) {
   const periode = await resolvePeriode(query.periodeId);
   const periodeIdBigInt = periode.id;
 
+  // R-KM-39: re-run cleaning DILARANG saat periode terkunci hasil K-Means COMPLETED -> 409.
+  await assertPeriodeNotLockedByKmeans(periodeIdBigInt);
+
   const { activeRun, integratedRows } = await getActiveRunIntegratedRows(periodeIdBigInt);
   if (!activeRun || integratedRows.length === 0) {
     throw new ApiError(400, "Stage integrasi belum selesai dijalankan. Jalankan integrasi terlebih dahulu sebelum cleaning.");
@@ -1014,6 +1040,14 @@ async function saveTransformAssignments(body, query) {
   };
 }
 
+// ===== BE-KM-2 (R-KM-40) Baseline Min-Max non-akademik.
+// Semantik kode kamus: 0 = "tidak/tidak mengikuti/tidak ada" — nilai ini WAJIB selamat dari
+// normalisasi (tetap 0.0000). Bug lama: baseline min:=min(kode aktual) menggeser 0 -> mis.
+// kemampuan (6-1)/(8-1)=0.7143, padahal Excel skripsi 6/8=0.75 (baseline min:=0).
+// Konsekuensi turunan (ruling V-2 tetap): kolom konstan min==max -> 0; bila max==0 range=0 -> 0.
+// Kolom akademik TIDAK tersentuh: min/max aktual kolom (perilaku lama, regresi AC-4 dijaga).
+const NON_AKADEMIK_FIELD_SET = new Set(NON_AKADEMIK_FIELDS);
+
 // Min-Max satu kolom Decimal lintas seluruh siswa (V-2: kolom konstan min==max -> 0).
 // Presisi penuh via Prisma.Decimal; HALF_UP 4 dp sesuai kolom Decimal(8,4).
 function minMaxNormalizeColumn(values, min, max) {
@@ -1037,6 +1071,9 @@ async function runTransform(adminInfo, query) {
   const startedWall = Date.now();
   const periode = await resolvePeriode(query.periodeId);
   const periodeIdBigInt = periode.id;
+
+  // R-KM-39: re-run transformasi DILARANG saat periode terkunci hasil K-Means COMPLETED -> 409.
+  await assertPeriodeNotLockedByKmeans(periodeIdBigInt);
 
   const { activeRun, cleanedRows } = await getActiveRunCleanedRows(periodeIdBigInt);
   if (!activeRun || cleanedRows.length === 0) {
@@ -1091,6 +1128,8 @@ async function runTransform(adminInfo, query) {
     });
 
     // (2) Min-Max per kolom lintas SELURUH siswa (25 kolom), lalu timpa hasil normalisasi.
+    // R-KM-40: baseline non-akademik min := 0 (kode "tidak" harus tetap 0.0000); akademik
+    // memakai min/max aktual kolom. Rounding HALF_UP 4 dp sebelum simpan tetap (R-KM-36).
     const ALL_COLUMNS = [...NUMERIC_FIELDS, ...NON_AKADEMIK_FIELDS];
     for (const field of ALL_COLUMNS) {
       const present = [];
@@ -1107,6 +1146,9 @@ async function runTransform(adminInfo, query) {
       for (const v of present) {
         if (v.cmp(min) < 0) min = v;
         if (v.cmp(max) > 0) max = v;
+      }
+      if (NON_AKADEMIK_FIELD_SET.has(field)) {
+        min = new Prisma.Decimal(0); // baseline tetap 0 lintas seluruh siswa run
       }
       const norm = minMaxNormalizeColumn(encodedRows.map((r) => r[field]), min, max);
       encodedRows.forEach((r, i) => { r[field] = norm[i]; });
@@ -1148,6 +1190,9 @@ async function runReduction(adminInfo, query) {
   const startedWall = Date.now();
   const periode = await resolvePeriode(query.periodeId);
   const periodeIdBigInt = periode.id;
+
+  // R-KM-39: re-run reduksi DILARANG saat periode terkunci hasil K-Means COMPLETED -> 409.
+  await assertPeriodeNotLockedByKmeans(periodeIdBigInt);
 
   const activeRun = await resolveCurrentRun(periodeIdBigInt);
 
