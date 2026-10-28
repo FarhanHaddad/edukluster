@@ -129,18 +129,40 @@ async function executeKmeansRun(periodId, adminInfo) {
   return getLatestKmeansRun(periodId !== undefined ? periodId : undefined, run.id);
 }
 
-// Rakit response lengkap run terbaru: summary + iterations (moves/movers) + assignments final.
+// Rakit response lengkap run terbaru: summary(k/totalStudents) + iterations(isConverged)
+// + assignments final BERFITUR (TIKET BE-KM-2 R6 / R-KM-41 — tab Scatter Bubble &
+// Parallel Coordinates frame 8C/8D butuh 25 nilai fitur per siswa; TANPA endpoint baru).
 async function buildRunResponse(run) {
   const iterations = await prisma.kmeans_iteration.findMany({
     where: { kmeans_run_id: run.id },
     orderBy: { iteration_number: 'asc' },
-    include: { cluster_assignment: { select: { siswa_periode_id: true, cluster_code: true } } },
+    select: {
+      iteration_number: true,
+      is_converged: true,
+      cluster_assignment: { select: { siswa_periode_id: true, cluster_code: true } },
+    },
   });
   const results = await prisma.cluster_result.findMany({
     where: { kmeans_run_id: run.id },
     include: { siswa_periode: { include: { siswa: { select: { nis: true, nama: true } } } } },
     orderBy: { id: 'asc' },
   });
+  // Sumber features: baris reduced_data milik preprocessing_run run ini, URUTAN id asc
+  // — identik dgn urutan rows saat executeKmeansRun (kontrak sinkronisasi assignment).
+  const reducedRows = await prisma.reduced_data.findMany({
+    where: { preprocessing_run_id: run.preprocessing_run_id },
+    orderBy: { id: 'asc' },
+  });
+  if (reducedRows.length !== results.length) {
+    throw new ApiError(500, 'Urutan assignments tidak sinkron dengan baris reduced_data.');
+  }
+  // Lookup features per siswa (key = String(siswa_periode_id)) dari baris yang sama.
+  const featuresBySiswaId = new Map(
+    reducedRows.map((row) => [
+      String(row.siswa_periode_id),
+      Object.fromEntries(FEATURE_ORDER.map((key) => [key, decimalTo4(row[key])])),
+    ])
+  );
   // Satu fetch siswa utk semua lookup movers + assignments (key = String(siswa_periode_id)).
   const studentById = new Map(
     results.map((r) => [String(r.siswa_periode_id), r.siswa_periode])
@@ -166,11 +188,14 @@ async function buildRunResponse(run) {
         };
       });
     prevAssign = currentAssign;
-    return { number: iteration.iteration_number, moves, movers };
+    // isConverged per iterasi — sumber kolom kmeans_iteration.is_converged (tanpa recomputasi).
+    return { number: iteration.iteration_number, isConverged: iteration.is_converged, moves, movers };
   });
 
   const distribution = new Array(10).fill(0);
-  const assignments = results.map((r) => {
+  // assignments URUTAN id asc — sinkron satu-ke-satu dengan reducedRows (guard length di atas);
+  // features = 25 kunci FEATURE_ORDER dari baris reduced_data milik siswa yang sama.
+  const assignments = results.map((r, idx) => {
     const clusterIndex = Number(r.cluster_code);
     distribution[clusterIndex] += 1;
     return {
@@ -179,6 +204,7 @@ async function buildRunResponse(run) {
       kelas: r.siswa_periode?.kelas ?? null,
       clusterIndex,
       distance: decimalTo4(r.distance),
+      features: Object.fromEntries(FEATURE_ORDER.map((key) => [key, decimalTo4(reducedRows[idx][key])])),
     };
   });
 
@@ -190,6 +216,10 @@ async function buildRunResponse(run) {
     totalIterations: run.total_iteration,
     dbiScore: decimalTo4(run.dbi_score),
     distribution,
+    summary: {
+      k: run.k,                       // jumlah cluster run (kontrak FE screen 8)
+      totalStudents: results.length,  // = jumlah assignment final = jumlah baris reduced_data
+    },
     iterations: iterationPayload,
     assignments,
   };

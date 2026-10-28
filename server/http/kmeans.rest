@@ -23,7 +23,15 @@ Authorization: Bearer {{token}}
 POST {{baseUrl}}/kmeans/runs?periodeId=1
 Authorization: Bearer {{token}}
 
-### 3. GET /kmeans/runs/latest — summary+iterations+assignments (Wajib 200; 105 assignments clusterIndex 0-9)
+### 3. GET /kmeans/runs/latest — read-model screen 8 (Wajib 200; ~65 KB; TANPA re-POST)
+# Shape data: { runId, status, converged, convergedAt, totalIterations, dbiScore, distribution[10],
+#   summary: { k, totalStudents },                       // k = run.k (10); totalStudents = jumlah assignment final (105)
+#   iterations: [{ number, isConverged, moves, movers[] }], // isConverged <- kolom kmeans_iteration.is_converged (run existing: [false,false,false,false,false,true])
+#   assignments: [{ nis, nama, kelas, clusterIndex, distance,
+#                   features: { ...25 kunci FEATURE_ORDER... } }] } // string HALF_UP 4 desimal; sumber baris reduced_data milik siswa tsb;
+#                                                                  // urutan assignments == urutan reduced_data id asc (sinkron R-KM-41)
+# Tab Scatter Bubble & Parallel Coordinates (frame 8C/8D) membaca assignments[].features — TIDAK ada endpoint baru.
+# SYNC RULE (docs/CONVENTIONS.md): perubahan shape di atas WAJIB didokumentasikan ulang di blok ini pada commit yang sama.
 GET {{baseUrl}}/kmeans/runs/latest?periodeId=1
 Authorization: Bearer {{token}}
 
