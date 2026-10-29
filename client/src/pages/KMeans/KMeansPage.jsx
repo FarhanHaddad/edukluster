@@ -15,6 +15,8 @@ import StatCards from './components/StatCards';
 import ChartTabs from './components/ChartTabs';
 import FilterSortToolbar from './components/FilterSortToolbar';
 import BarColumns from './components/charts/BarColumns';
+import ScatterBubble from './components/charts/ScatterBubble';
+import ParallelCoords from './components/charts/ParallelCoords';
 import ResultTable from './components/ResultTable';
 
 export default function KMeansPage() {
@@ -41,6 +43,10 @@ export default function KMeansPage() {
   // Lifted state for Filter & Sort
   const [filterCluster, setFilterCluster] = useState('all');
   const [sortBy, setSortBy] = useState('nis');
+
+  // Lifted state for Scatter Sumbu X & Y to persist across tab navigation
+  const [axisX, setAxisX] = useState('mtk_wajib');
+  const [axisY, setAxisY] = useState('kemampuan');
 
   const [toast, setToast] = useState({
     open: false,
@@ -216,9 +222,23 @@ export default function KMeansPage() {
                     sortBy={sortBy}
                   />
                 </div>
+              ) : activeTab === 'scatter' ? (
+                <ScatterBubble
+                  assignments={runData?.assignments || []}
+                  filterCluster={filterCluster}
+                  axisX={axisX}
+                  onAxisXChange={setAxisX}
+                  axisY={axisY}
+                  onAxisYChange={setAxisY}
+                />
+              ) : activeTab === 'parallel' ? (
+                <ParallelCoords
+                  assignments={runData?.assignments || []}
+                  filterCluster={filterCluster}
+                />
               ) : (
                 <div className="flex h-80 items-center justify-center rounded-lg border border-dashed border-line bg-page text-sm text-muted">
-                  Konten Tab {activeTab} (F3-F5)
+                  Konten Tab {activeTab} (F4-F5)
                 </div>
               )}
             </ChartTabs>
