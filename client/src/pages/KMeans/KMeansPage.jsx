@@ -19,6 +19,7 @@ import ScatterBubble from './components/charts/ScatterBubble';
 import ParallelCoords from './components/charts/ParallelCoords';
 import ResultTable from './components/ResultTable';
 import IterationHistory from './components/IterationHistory';
+import DbiEvaluation from './components/DbiEvaluation';
 
 export default function KMeansPage() {
   const navigate = useNavigate();
@@ -240,9 +241,7 @@ export default function KMeansPage() {
               ) : activeTab === 'iterations' ? (
                 <IterationHistory runData={runData} periodeId={periodeId} />
               ) : (
-                <div className="flex h-80 items-center justify-center rounded-lg border border-dashed border-line bg-page text-sm text-muted">
-                  Konten Tab {activeTab} (F5)
-                </div>
+                <DbiEvaluation runData={runData} />
               )}
             </ChartTabs>
           </Card>

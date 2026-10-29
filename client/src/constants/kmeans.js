@@ -66,3 +66,27 @@ export const EMPTY_STATE_COPY = {
     cta: 'Jalankan K-Means',
   },
 };
+
+export const DBI_LATEX = {
+  hero: '\\mathbf{DBI} = \\frac{1}{k}\\sum_{i=1}^{k}\\max_{i \\neq j}\\left(R_{i,j}\\right)',
+  s_i: 'S_i',
+  d_ij: 'd(i,j)',
+  r_ij: 'R_{ij} = \\frac{S_i + S_j}{d(i,j)}',
+  dbi_row: 'DBI = \\frac{1}{k}\\sum \\max_{i \\neq j}\\left(R_{i,j}\\right);\\ k = 10',
+};
+
+export const DBI_COPY = {
+  components: [
+    'rata-rata jarak anggota cluster i ke centroid i',
+    'jarak Euclidean antar centroid i dan j',
+    'rasio pemisahan cluster i dan j',
+    'rata-rata nilai maksimum R_ij untuk seluruh cluster',
+  ],
+  howToRead: [
+    'kecil → anggota cluster rapat (homogen).',
+    'besar → antar cluster terpisah jelas.',
+    'kecil → cluster tidak tumpang tindih dengan tetangga terdekat.',
+  ],
+  summaryParagraph:
+    'DBI membandingkan penyebaran di dalam cluster dengan jarak antar cluster. Semakin rendah nilai, semakin rapat dan terpisah clusternya. Nilai {dbi} menandakan hasil clustering sangat baik untuk dipakai sebagai dasar profiling dan rekomendasi jurusan.',
+};
