@@ -38,7 +38,7 @@ export default function ChartTabs({ activeTab, onSelectTab, isRunExecuted, child
         </nav>
       </div>
 
-      <div className="min-h-[400px]">
+      <div className="min-h-100">
         {children}
       </div>
     </div>
