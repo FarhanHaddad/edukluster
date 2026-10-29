@@ -19,6 +19,34 @@ export const KMEANS_TABS = [
   { id: 'dbi', label: 'Evaluasi DBI', isAudit: true },
 ];
 
+export const FEATURE_OPTIONS = [
+  { value: 'agama', label: 'Agama' },
+  { value: 'pkn', label: 'PKN' },
+  { value: 'b_indonesia', label: 'B. Indonesia' },
+  { value: 'b_inggris', label: 'B. Inggris' },
+  { value: 'mtk_wajib', label: 'Mtk Wajib' },
+  { value: 'sejarah', label: 'Sejarah' },
+  { value: 'pjok', label: 'PJOK' },
+  { value: 'seni_rupa', label: 'Seni Rupa' },
+  { value: 'b_jepang', label: 'B. Jepang' },
+  { value: 'biologi', label: 'Biologi' },
+  { value: 'fisika', label: 'Fisika' },
+  { value: 'kimia', label: 'Kimia' },
+  { value: 'informatika', label: 'Informatika' },
+  { value: 'mtk_lanjut', label: 'Mtk Lanjut' },
+  { value: 'geografi', label: 'Geografi' },
+  { value: 'sosial', label: 'Sosial' },
+  { value: 'pkwu', label: 'PKWU' },
+  { value: 'ekonomi', label: 'Ekonomi' },
+  { value: 'ekstrakurikuler', label: 'Ekstrakurikuler' },
+  { value: 'prestasi', label: 'Prestasi' },
+  { value: 'kemampuan', label: 'Kemampuan' },
+  { value: 'organisasi', label: 'Organisasi' },
+  { value: 'kursus', label: 'Kursus' },
+  { value: 'jurusan_1', label: 'Jurusan 1' },
+  { value: 'jurusan_2', label: 'Jurusan 2' },
+];
+
 export const KMEANS_STATUS_BADGES = {
   NOT_RUN: { label: 'Belum dijalankan', variant: 'muted' },
   CONVERGED: { label: 'Konvergen', variant: 'success' },
