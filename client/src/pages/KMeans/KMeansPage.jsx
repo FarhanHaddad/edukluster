@@ -18,6 +18,7 @@ import BarColumns from './components/charts/BarColumns';
 import ScatterBubble from './components/charts/ScatterBubble';
 import ParallelCoords from './components/charts/ParallelCoords';
 import ResultTable from './components/ResultTable';
+import IterationHistory from './components/IterationHistory';
 
 export default function KMeansPage() {
   const navigate = useNavigate();
@@ -191,7 +192,7 @@ export default function KMeansPage() {
           <StatCards runData={runData} isRunExecuted={isRunExecuted} />
 
           <Card className="p-6 space-y-4">
-            {isRunExecuted && (
+            {isRunExecuted && activeTab !== 'iterations' && activeTab !== 'dbi' && (
               <FilterSortToolbar
                 filterCluster={filterCluster}
                 onFilterChange={setFilterCluster}
@@ -236,9 +237,11 @@ export default function KMeansPage() {
                   assignments={runData?.assignments || []}
                   filterCluster={filterCluster}
                 />
+              ) : activeTab === 'iterations' ? (
+                <IterationHistory runData={runData} periodeId={periodeId} />
               ) : (
                 <div className="flex h-80 items-center justify-center rounded-lg border border-dashed border-line bg-page text-sm text-muted">
-                  Konten Tab {activeTab} (F4-F5)
+                  Konten Tab {activeTab} (F5)
                 </div>
               )}
             </ChartTabs>
