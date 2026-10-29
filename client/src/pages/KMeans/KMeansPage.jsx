@@ -13,6 +13,9 @@ import EmptyState from '../../components/domain/EmptyState';
 import Toast from '../../components/domain/siswa/Toast';
 import StatCards from './components/StatCards';
 import ChartTabs from './components/ChartTabs';
+import FilterSortToolbar from './components/FilterSortToolbar';
+import BarColumns from './components/charts/BarColumns';
+import ResultTable from './components/ResultTable';
 
 export default function KMeansPage() {
   const navigate = useNavigate();
@@ -34,6 +37,10 @@ export default function KMeansPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('distribution');
+
+  // Lifted state for Filter & Sort
+  const [filterCluster, setFilterCluster] = useState('all');
+  const [sortBy, setSortBy] = useState('nis');
 
   const [toast, setToast] = useState({
     open: false,
@@ -177,7 +184,16 @@ export default function KMeansPage() {
         <div className="space-y-6">
           <StatCards runData={runData} isRunExecuted={isRunExecuted} />
 
-          <Card className="p-6">
+          <Card className="p-6 space-y-4">
+            {isRunExecuted && (
+              <FilterSortToolbar
+                filterCluster={filterCluster}
+                onFilterChange={setFilterCluster}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+              />
+            )}
+
             <ChartTabs
               activeTab={activeTab}
               onSelectTab={setActiveTab}
@@ -188,9 +204,21 @@ export default function KMeansPage() {
                   title="K-Means Belum Dijalankan"
                   description="Klik tombol &quot;Jalankan K-Means&quot; di sudut kanan atas untuk mengelompokkan data siswa periode ini."
                 />
+              ) : activeTab === 'distribution' ? (
+                <div className="space-y-8">
+                  <BarColumns
+                    distribution={runData?.distribution || []}
+                    filterCluster={filterCluster}
+                  />
+                  <ResultTable
+                    assignments={runData?.assignments || []}
+                    filterCluster={filterCluster}
+                    sortBy={sortBy}
+                  />
+                </div>
               ) : (
                 <div className="flex h-80 items-center justify-center rounded-lg border border-dashed border-line bg-page text-sm text-muted">
-                  Konten Tab {activeTab} (F2-F5)
+                  Konten Tab {activeTab} (F3-F5)
                 </div>
               )}
             </ChartTabs>
