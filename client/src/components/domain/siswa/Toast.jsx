@@ -29,7 +29,7 @@ export default function Toast({
       role="status"
       aria-live="polite"
       className={cn(
-        'fixed bottom-4 right-4 z-50 flex max-w-md items-center justify-between gap-3 rounded-lg border p-4 shadow-lg transition-all duration-200',
+        'fixed top-6 left-1/2 -translate-x-1/2 z-50 flex max-w-md items-center justify-between gap-3 rounded-lg border p-4 shadow-lg transition-all duration-200',
         isSuccess
           ? 'border-success/30 bg-elevated text-ink'
           : 'border-danger/30 bg-elevated text-ink'
