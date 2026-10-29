@@ -9,11 +9,11 @@ import AdminPage from './pages/AdminPage';
 import SiswaPage from './pages/SiswaPage';
 import SiswaEditPage from './pages/SiswaEditPage';
 import PreprocessingPage from './pages/PreprocessingPage';
+import KMeansPage from './pages/KMeans/KMeansPage';
 import PlaceholderPage from './components/domain/PlaceholderPage';
 
 // Menu shell yang belum dibangun — semua protected, render PlaceholderPage.
 const PLACEHOLDER_ROUTES = [
-  { path: '/kmeans', title: 'K-Means & Visualisasi' },
   { path: '/profiling', title: 'Profiling & Rekomendasi' },
   { path: '/laporan', title: 'Laporan' },
   { path: '/riwayat', title: 'Riwayat' },
@@ -36,6 +36,7 @@ export default function App() {
               <Route path="/siswa" element={<SiswaPage />} />
               <Route path="/siswa/:id/edit" element={<SiswaEditPage />} />
               <Route path="/preprocessing" element={<PreprocessingPage />} />
+              <Route path="/kmeans" element={<KMeansPage />} />
               {PLACEHOLDER_ROUTES.map(({ path, title }) => (
                 <Route key={path} path={path} element={<PlaceholderPage title={title} />} />
               ))}

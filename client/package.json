@@ -19,6 +19,7 @@
     "clsx": "^2.1.1",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",
+    "katex": "^0.19.1",
     "lucide-react": "^1.50.0",
     "pdfmake": "^0.3.11",
     "react": "^19.3.0",
