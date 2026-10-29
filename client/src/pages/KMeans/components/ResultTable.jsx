@@ -76,7 +76,7 @@ export default function ResultTable({ assignments = [], filterCluster = 'all', s
               pageData.map((row, idx) => {
                 const clusterNum = (Number(row.clusterIndex) || 0) + 1;
                 return (
-                  <tr key={row.nis || idx} className="hover:bg-page/50 transition-colors">
+                  <tr key={row.nis || idx} className="hover:bg-page transition-colors">
                     <td className="py-3 px-4 font-mono">{row.nis}</td>
                     <td className="py-3 px-4 font-medium">{row.nama}</td>
                     <td className="py-3 px-4">{row.kelas}</td>

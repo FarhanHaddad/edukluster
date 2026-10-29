@@ -111,7 +111,7 @@ export default function IterationHistory({ runData, periodeId }) {
               <button
                 type="button"
                 onClick={() => toggleAccordion(num)}
-                className="flex w-full items-center justify-between p-4 text-left hover:bg-page/50 transition-colors"
+                className="flex w-full items-center justify-between p-4 text-left hover:bg-page transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-main">Iterasi {num}</span>
@@ -129,7 +129,7 @@ export default function IterationHistory({ runData, periodeId }) {
 
               {/* Accordion Body */}
               {isOpen && (
-                <div className="border-t border-line p-4 space-y-4 bg-page/30">
+                <div className="border-t border-line p-4 space-y-4 bg-page">
                   {/* Tabel 4 Langkah (Derivasi G4) */}
                   <div className="rounded-md border border-line bg-card overflow-hidden text-xs">
                     <div className="bg-page px-3 py-2 font-medium text-main border-b border-line">
@@ -249,7 +249,7 @@ export default function IterationHistory({ runData, periodeId }) {
                                   const cIdx = c.clusterIndex;
                                   const color = KMEANS_PALETTE[cIdx] || '#6366F1';
                                   return (
-                                    <tr key={cIdx} className="hover:bg-page/40">
+                                    <tr key={cIdx} className="hover:bg-page">
                                       <td className="px-2 py-1.5 font-semibold whitespace-nowrap bg-card">
                                         <span className="inline-flex items-center gap-1">
                                           <span
