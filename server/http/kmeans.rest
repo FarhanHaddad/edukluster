@@ -7,12 +7,11 @@ Content-Type: application/json
 
 { "username": "satnaing", "password": "widuri2026" }
 
-@token = {{login.response.body.data.token}}
-
 ### 1. POST /kmeans/runs — eksekusi K-Means pertama (Wajib 201; oracle moves [105,14,7,2,0])
 # Guard 422 (KASUS: reduced_data run aktif KOSONG):
 #   bila preprocessing belum sampai tahap Reduksi -> 422
 #   "Data reduksi belum tersedia; jalankan preprocessing sampai tahap Reduksi."
+@token = {{login.response.body.data.token}}
 POST {{baseUrl}}/kmeans/runs?periodeId=1
 Authorization: Bearer {{token}}
 
