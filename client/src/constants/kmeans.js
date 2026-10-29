@@ -12,8 +12,8 @@ export const KMEANS_PALETTE = [
 ];
 
 export const KMEANS_TABS = [
-  { id: 'distribution', label: 'Distribusi Cluster', isAudit: false },
-  { id: 'scatter', label: 'Scatter Bubble (2D)', isAudit: false },
+  { id: 'distribution', label: 'Bar Columns', isAudit: false },
+  { id: 'scatter', label: 'Scatter Bubble', isAudit: false },
   { id: 'parallel', label: 'Parallel Coordinates', isAudit: false },
   { id: 'iterations', label: 'Riwayat Iterasi', isAudit: true },
   { id: 'dbi', label: 'Evaluasi DBI', isAudit: true },
@@ -62,7 +62,7 @@ export const EMPTY_STATE_COPY = {
   },
   NO_RUN: {
     title: 'K-Means Belum Dijalankan',
-    description: 'Klik tombol "Jalankan K-Means" di sudut kanan atas untuk mengelompokkan data siswa periode ini.',
+    description: 'Klik tombol "Jalankan K-Means" untuk mengelompokkan data siswa periode ini.',
     cta: 'Jalankan K-Means',
   },
 };

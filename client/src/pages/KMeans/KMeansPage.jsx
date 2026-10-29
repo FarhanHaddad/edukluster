@@ -39,6 +39,7 @@ export default function KMeansPage() {
   const [isRunLoading, setIsRunLoading] = useState(true);
   const [isRunError, setIsRunError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [runActionError, setRunActionError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('distribution');
 
@@ -90,6 +91,7 @@ export default function KMeansPage() {
   const handleRunKMeans = async () => {
     if (!periodeId || isSubmitting) return;
     setIsSubmitting(true);
+    setRunActionError('');
     try {
       await runKMeans(periodeId);
       setToast({
@@ -103,13 +105,17 @@ export default function KMeansPage() {
       await refetchPipeline();
     } catch (err) {
       const msg = err.response?.data?.message || 'Gagal menjalankan K-Means.';
-      setToast({
-        open: true,
-        message: msg,
-        title: '',
-        description: '',
-        tone: 'danger',
-      });
+      if (err.response?.status === 409) {
+        setToast({
+          open: true,
+          message: msg,
+          title: '',
+          description: '',
+          tone: 'danger',
+        });
+      } else {
+        setRunActionError(msg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -128,27 +134,6 @@ export default function KMeansPage() {
         title="K-Means & Visualisasi"
         description="Pengelompokan data siswa menggunakan algoritma K-Means dan visualisasi hasil klusterisasi."
         periodChip={<PeriodChip namaPeriode={periodeNama} />}
-        action={
-          isReduksiSelesai ? (
-            <Button
-              variant="primary"
-              onClick={handleRunKMeans}
-              disabled={isSubmitting || isLoading}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  <span>Memproses...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="size-4" />
-                  <span>Jalankan K-Means</span>
-                </>
-              )}
-            </Button>
-          ) : null
-        }
       />
 
       {isLoading ? (
@@ -208,10 +193,35 @@ export default function KMeansPage() {
               isRunExecuted={isRunExecuted}
             >
               {!isRunExecuted ? (
-                <EmptyState
-                  title="K-Means Belum Dijalankan"
-                  description="Klik tombol &quot;Jalankan K-Means&quot; di sudut kanan atas untuk mengelompokkan data siswa periode ini."
-                />
+                <div className="space-y-4">
+                  {runActionError ? (
+                    <InfoBanner tone="danger">{runActionError}</InfoBanner>
+                  ) : null}
+                  <EmptyState
+                    title="K-Means Belum Dijalankan"
+                    description='Klik tombol "Jalankan K-Means" untuk mengelompokkan data siswa periode ini.'
+                  >
+                    <div className="flex justify-end pt-2">
+                      <Button
+                        variant="primary"
+                        onClick={handleRunKMeans}
+                        disabled={isSubmitting || isLoading}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="size-4 animate-spin" />
+                            <span>Memproses...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="size-4" />
+                            <span>Jalankan K-Means</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </EmptyState>
+                </div>
               ) : activeTab === 'distribution' ? (
                 <div className="space-y-8">
                   <BarColumns
