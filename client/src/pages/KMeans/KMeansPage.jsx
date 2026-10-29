@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Loader2, ArrowRight } from 'lucide-react';
+import { Play, Loader2, ArrowRight, BarChart2 } from 'lucide-react';
 import useDashboardSummary from '../../hooks/useDashboardSummary';
 import { usePreprocessingStatus } from '../../hooks/usePreprocessing';
-import { getLatestKMeansRun, runKMeans } from '../../api/kmeans';
+import { useLatestKMeansRun, useRunKMeans } from '../../hooks/useKMeans';
 import PageHeader from '../../components/domain/PageHeader';
 import PeriodChip from '../../components/domain/PeriodChip';
 import Card from '../../components/ui/Card';
@@ -35,12 +35,17 @@ export default function KMeansPage() {
     refetch: refetchPipeline,
   } = usePreprocessingStatus(periodeId);
 
-  const [runData, setRunData] = useState(null);
-  const [isRunLoading, setIsRunLoading] = useState(true);
-  const [isRunError, setIsRunError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const {
+    data: runData,
+    isLoading: isRunLoading,
+    isError: isRunError,
+    error: runError,
+    refetch: refetchRun,
+  } = useLatestKMeansRun(periodeId, { enabled: Boolean(periodeId) });
+
+  const runKMeansMutation = useRunKMeans();
+
   const [runActionError, setRunActionError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('distribution');
 
   // Lifted state for Filter & Sort
@@ -59,65 +64,31 @@ export default function KMeansPage() {
     tone: 'success',
   });
 
-  const fetchLatestRun = async () => {
-    if (!periodeId) return;
-    setIsRunLoading(true);
-    setIsRunError(false);
-    try {
-      const data = await getLatestKMeansRun(periodeId);
-      setRunData(data);
-    } catch (err) {
-      if (err.response?.status === 404) {
-        setRunData(null);
-      } else {
-        setIsRunError(true);
-        setErrorMessage(
-          err.response?.data?.message || 'Gagal mengambil data K-Means dari server.'
-        );
-      }
-    } finally {
-      setIsRunLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (periodeId) {
-      fetchLatestRun();
-    } else {
-      setIsRunLoading(false);
-    }
-  }, [periodeId]);
-
   const handleRunKMeans = async () => {
-    if (!periodeId || isSubmitting) return;
-    setIsSubmitting(true);
+    if (!periodeId || runKMeansMutation.isPending) return;
     setRunActionError('');
     try {
-      await runKMeans(periodeId);
+      await runKMeansMutation.mutateAsync(periodeId);
       setToast({
         open: true,
-        message: 'K-Means berhasil dijalankan.',
-        title: '',
+        message: '',
+        title: 'K-Means berhasil dijalankan.',
         description: 'Data siswa periode ini terkunci (ubah & hapus).',
         tone: 'success',
       });
-      await fetchLatestRun();
-      await refetchPipeline();
     } catch (err) {
       const msg = err.response?.data?.message || 'Gagal menjalankan K-Means.';
       if (err.response?.status === 409) {
         setToast({
           open: true,
-          message: msg,
-          title: '',
+          message: '',
+          title: msg,
           description: '',
           tone: 'danger',
         });
       } else {
         setRunActionError(msg);
       }
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -132,7 +103,7 @@ export default function KMeansPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title="K-Means & Visualisasi"
-        description="Pengelompokan data siswa menggunakan algoritma K-Means dan visualisasi hasil klusterisasi."
+        description="Pengelompokan data siswa menggunakan algoritma K-Means dan visualisasi hasil klasterisasi."
         periodChip={<PeriodChip namaPeriode={periodeNama} />}
       />
 
@@ -146,14 +117,14 @@ export default function KMeansPage() {
       ) : isError ? (
         <Card className="space-y-4 p-6">
           <InfoBanner tone="danger">
-            {errorMessage || 'Gagal mengambil data dari server.'}
+            {runError?.response?.data?.message || 'Gagal mengambil data K-Means dari server.'}
           </InfoBanner>
           <div className="flex justify-start">
             <Button
               variant="outline"
               onClick={() => {
                 refetchPipeline();
-                fetchLatestRun();
+                refetchRun();
               }}
             >
               Coba Lagi
@@ -193,34 +164,38 @@ export default function KMeansPage() {
               isRunExecuted={isRunExecuted}
             >
               {!isRunExecuted ? (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {runActionError ? (
                     <InfoBanner tone="danger">{runActionError}</InfoBanner>
                   ) : null}
-                  <EmptyState
-                    title="K-Means Belum Dijalankan"
-                    description='Klik tombol "Jalankan K-Means" untuk mengelompokkan data siswa periode ini.'
-                  >
-                    <div className="flex justify-end pt-2">
-                      <Button
-                        variant="primary"
-                        onClick={handleRunKMeans}
-                        disabled={isSubmitting || isLoading}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="size-4 animate-spin" />
-                            <span>Memproses...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Play className="size-4" />
-                            <span>Jalankan K-Means</span>
-                          </>
-                        )}
-                      </Button>
+
+                  <div className="py-12 flex flex-col items-center justify-center text-center">
+                    <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-brand-tint text-brand">
+                      <BarChart2 className="size-6 text-brand" />
                     </div>
-                  </EmptyState>
+                    <h3 className="text-base font-semibold text-main">Belum ada hasil clustering</h3>
+                    <p className="mt-1 text-sm text-muted">Jalankan K-Means untuk melihat visualisasi.</p>
+                  </div>
+
+                  <div className="border-t border-line pt-4 flex justify-end">
+                    <Button
+                      variant="primary"
+                      onClick={handleRunKMeans}
+                      disabled={runKMeansMutation.isPending || isLoading}
+                    >
+                      {runKMeansMutation.isPending ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" />
+                          <span>Memproses...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="size-4" />
+                          <span>Jalankan K-Means</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ) : activeTab === 'distribution' ? (
                 <div className="space-y-8">
