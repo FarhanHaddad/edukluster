@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import {
   Play,
-  Layers,
-  Upload,
+  Brain,
+  Blocks,
   SlidersHorizontal,
   FileDown,
   CircleDot,
   CalendarPlus,
   Users,
+  UserPlus,
   FileSpreadsheet,
 } from 'lucide-react';
 import * as Lucide from 'lucide-react';
@@ -73,7 +74,7 @@ export default function DashboardPage() {
 
   // CTA kosong: ada periode aktif -> tambah data; belum -> buat periode dulu.
   const emptyCta = periodeAktif
-    ? { label: 'Tambah Data Siswa', to: '/siswa', icon: Users }
+    ? { label: 'Tambah Data Siswa', to: '/siswa', icon: UserPlus }
     : { label: 'Buat Periode Pertama', to: '/periode', icon: CalendarPlus };
 
   // Caption kartu Total Siswa mengikuti konteks periode (kontrak frame State A/C).
@@ -130,7 +131,7 @@ export default function DashboardPage() {
           value={isLoading ? '—' : formatAngka(summary?.jumlahCluster ?? 0)}
           caption={`${formatAngka(summary?.jumlahCluster ?? 0)} Klaster`}
           tone="neutral"
-          icon={Layers}
+          icon={Blocks}
         />
       </div>
 
@@ -138,7 +139,7 @@ export default function DashboardPage() {
         /* STATE A/C: belum ada data pada periode berjalan */
         <>
           <EmptyState
-            icon={Upload}
+            icon={UserPlus}
             title="Belum Ada Data Periode Berjalan"
             description="Mulai dengan membuat periode aktif lalu unggah data nilai siswa untuk menjalankan pipeline klasterisasi."
             ctaLabel={emptyCta.label}
@@ -189,13 +190,13 @@ export default function DashboardPage() {
         /* STATE B: sudah ada data siswa pada periode aktif */
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <QuickAction to="/siswa" icon={Upload} label="Tambah Data Siswa" />
+            <QuickAction to="/siswa" icon={UserPlus} label="Tambah Data Siswa" />
             <QuickAction
               to="/preprocessing"
-              icon={SlidersHorizontal}
+              icon={Play}
               label="Jalankan Preprocessing"
             />
-            <QuickAction to="/kmeans" icon={Play} label="Eksekusi K-Means" variant="emphasis" />
+            <QuickAction to="/kmeans" icon={Brain} label="Eksekusi K-Means" variant="emphasis" />
             <QuickAction to="/laporan" icon={FileDown} label="Unduh Laporan PDF" />
           </div>
 
