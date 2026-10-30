@@ -1,12 +1,9 @@
 import { Link } from 'react-router-dom';
 import {
-  Database,
-  CircleSlash2,
   Play,
   Layers,
   Upload,
   SlidersHorizontal,
-  Brain,
   FileDown,
   CircleDot,
   CalendarPlus,
@@ -112,21 +109,21 @@ export default function DashboardPage() {
           value={isLoading ? '—' : formatAngka(totalSiswa)}
           caption={totalSiswa === 0 ? totalCaption : undefined}
           tone="neutral"
-          icon={Database}
+          icon={Users}
         />
         <StatCard
           label="Status Preprocessing"
           value={isLoading ? '—' : preproc.value}
           caption={preproc.caption}
           tone={preproc.tone}
-          icon={CircleSlash2}
+          icon={SlidersHorizontal}
         />
         <StatCard
           label="Status K-Means"
           value={isLoading ? '—' : kmeans.value}
           caption={kmeans.caption}
           tone={kmeans.tone}
-          icon={Play}
+          icon={ClusterIcon}
         />
         <StatCard
           label="Jumlah Cluster"
@@ -198,7 +195,7 @@ export default function DashboardPage() {
               icon={SlidersHorizontal}
               label="Jalankan Preprocessing"
             />
-            <QuickAction to="/kmeans" icon={Brain} label="Eksekusi K-Means" variant="emphasis" />
+            <QuickAction to="/kmeans" icon={Play} label="Eksekusi K-Means" variant="emphasis" />
             <QuickAction to="/laporan" icon={FileDown} label="Unduh Laporan PDF" />
           </div>
 

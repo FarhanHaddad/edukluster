@@ -1,4 +1,4 @@
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.6.1';
 
 export const KELAS_OPTIONS = ['XII-1', 'XII-2', 'XII-3', 'XII-4'];
 
