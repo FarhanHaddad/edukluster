@@ -13,7 +13,6 @@ import EmptyState from '../../components/domain/EmptyState';
 import Toast from '../../components/domain/siswa/Toast';
 import StatCards from './components/StatCards';
 import ChartTabs from './components/ChartTabs';
-import FilterSortToolbar from './components/FilterSortToolbar';
 import BarColumns from './components/charts/BarColumns';
 import ScatterBubble from './components/charts/ScatterBubble';
 import ParallelCoords from './components/charts/ParallelCoords';
@@ -47,10 +46,6 @@ export default function KMeansPage() {
 
   const [runActionError, setRunActionError] = useState('');
   const [activeTab, setActiveTab] = useState('distribution');
-
-  // Lifted state for Filter & Sort
-  const [filterCluster, setFilterCluster] = useState('all');
-  const [sortBy, setSortBy] = useState('nis');
 
   // Lifted state for Scatter Sumbu X & Y to persist across tab navigation
   const [axisX, setAxisX] = useState('mtk_wajib');
@@ -149,15 +144,6 @@ export default function KMeansPage() {
           <StatCards runData={runData} isRunExecuted={isRunExecuted} />
 
           <Card className="p-6 space-y-4">
-            {isRunExecuted && activeTab !== 'iterations' && activeTab !== 'dbi' && (
-              <FilterSortToolbar
-                filterCluster={filterCluster}
-                onFilterChange={setFilterCluster}
-                sortBy={sortBy}
-                onSortChange={setSortBy}
-              />
-            )}
-
             <ChartTabs
               activeTab={activeTab}
               onSelectTab={setActiveTab}
@@ -199,30 +185,25 @@ export default function KMeansPage() {
                 </div>
               ) : activeTab === 'distribution' ? (
                 <div className="space-y-8">
-                  <BarColumns
-                    distribution={runData?.distribution || []}
-                    filterCluster={filterCluster}
-                  />
-                  <ResultTable
-                    assignments={runData?.assignments || []}
-                    filterCluster={filterCluster}
-                    sortBy={sortBy}
-                  />
+                  <BarColumns distribution={runData?.distribution || []} />
+                  <ResultTable assignments={runData?.assignments || []} />
                 </div>
               ) : activeTab === 'scatter' ? (
-                <ScatterBubble
-                  assignments={runData?.assignments || []}
-                  filterCluster={filterCluster}
-                  axisX={axisX}
-                  onAxisXChange={setAxisX}
-                  axisY={axisY}
-                  onAxisYChange={setAxisY}
-                />
+                <div className="space-y-8">
+                  <ScatterBubble
+                    assignments={runData?.assignments || []}
+                    axisX={axisX}
+                    onAxisXChange={setAxisX}
+                    axisY={axisY}
+                    onAxisYChange={setAxisY}
+                  />
+                  <ResultTable assignments={runData?.assignments || []} />
+                </div>
               ) : activeTab === 'parallel' ? (
-                <ParallelCoords
-                  assignments={runData?.assignments || []}
-                  filterCluster={filterCluster}
-                />
+                <div className="space-y-8">
+                  <ParallelCoords assignments={runData?.assignments || []} />
+                  <ResultTable assignments={runData?.assignments || []} />
+                </div>
               ) : activeTab === 'iterations' ? (
                 <IterationHistory runData={runData} periodeId={periodeId} />
               ) : (

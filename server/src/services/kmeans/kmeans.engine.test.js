@@ -1,6 +1,7 @@
 // QA lokal engine K-Means + DBI (TANPA DB/HTTP) - TIKET BE-KM-1.
 // Jalankan: node server/src/services/kmeans/kmeans.engine.test.js
-// Oracle AC: A (fixture 6 titik), B (tie-break), C (cluster kosong), D (determinisme), E (maxIter).
+// Oracle AC: A (fixture 6 titik), B (tie-break), C (cluster kosong), D (determinisme), E (maxIter),
+// F (rezim presisi 4dp R-KM-36), G (bridge TIKET BE-KM-3: kunci rezim + status oracle Excel).
 
 'use strict';
 
@@ -111,6 +112,58 @@ const allFourDecimals = resF.distances.every((distanceValue) => {
 check('F.distances<=4dp', allFourDecimals === true, JSON.stringify(resF.distances));
 check('F.convergedAt=1', resF.converged === true && resF.convergedAt === 1,
   `converged=${resF.converged} at=${resF.convergedAt}`);
+
+// ================= FIXTURE G: TIKET BE-KM-3 — precision regime TERKUNCI + status oracle Excel ===
+// (1) Regim produksi terkunci Mode A: intermediat centroid HALF_UP 4 desimal.
+const { PRECISION_REGIME } = require('./kmeans.engine');
+check('G.rezim TERKUNCI mode A decimals=4',
+  PRECISION_REGIME.mode === 'A' && PRECISION_REGIME.decimals === 4,
+  JSON.stringify(PRECISION_REGIME));
+
+// (2) Fixture reduced_data 105 baris (dump server/DB/edukluster_widuri_new.sql; override via
+//     env KMEANS_FIXTURE_JSON). Bridge QA-only: node kmeans.regime.bridge.js.
+function loadReducedFixture() {
+  const fs = require('fs');
+  const path = require('path');
+  const envPath = process.env.KMEANS_FIXTURE_JSON;
+  if (envPath) return JSON.parse(fs.readFileSync(envPath, 'utf8')).map((r) => r.map(Number));
+  const sqlDump = fs.readFileSync(
+    path.resolve(__dirname, '../../../DB/edukluster_widuri_new.sql'), 'utf8');
+  const insertMatch = sqlDump.match(/INSERT INTO `reduced_data` \([^)]*\) VALUES\n([\s\S]*?);\n/);
+  if (!insertMatch) return null;
+  const rows = [];
+  for (const rawLine of insertMatch[1].split('\n')) {
+    const line = rawLine.trim().replace(/,$/, '');
+    if (!line.startsWith('(')) continue;
+    const fields = line.slice(1, -1).split(',').map((f) => f.trim());
+    rows.push(fields.slice(3, 28).map(Number));
+  }
+  return rows;
+}
+const fixtureG = loadReducedFixture();
+if (fixtureG && fixtureG.length === 105) {
+  const resG = runKMeans(fixtureG, { k: 10 });
+  const movesG = resG.iterations.map((it) => it.moves);
+  // Temuan bridge BE-KM-3: Mode A/B/C menghasilkan trajectory IDENTIK ini pada fixture DB —
+  // pembulatan intermediat BUKAN penyebab selisih vs oracle Excel skripsi.
+  check('G.fixture105 moves=[105,16,10,5,1,0]',
+    JSON.stringify(movesG) === '[105,16,10,5,1,0]', JSON.stringify(movesG));
+  check('G.fixture105 convergedAt=5 totalIterations=6',
+    resG.convergedAt === 5 && resG.iterations.length === 6,
+    `at=${resG.convergedAt} len=${resG.iterations.length}`);
+  check('G.fixture105 distribution=[3,3,23,3,14,26,5,12,9,7]',
+    JSON.stringify(resG.distribution) === '[3,3,23,3,14,26,5,12,9,7]',
+    JSON.stringify(resG.distribution));
+  // Oracle Excel ([105,14,7,2,0] / at 4 / [3,3,22,5,14,26,5,12,8,7]) TIDAK direproduksi mode mana pun
+  // -> sesuai AC tiket: STOP & LAPOR dengan tabel bridge + seed rows (lihat output bridge script).
+  const ORACLE_EXCEL = { moves: [105, 14, 7, 2, 0], convergedAt: 4, distribution: [3, 3, 22, 5, 14, 26, 5, 12, 8, 7] };
+  check('G.oracleExcel BELUM cocok (STOP&LAPOR — diff = input/seed Excel, bukan rounding)',
+    JSON.stringify(movesG) !== JSON.stringify(ORACLE_EXCEL.moves) &&
+    JSON.stringify(resG.distribution) !== JSON.stringify(ORACLE_EXCEL.distribution),
+    'perlu formula-bar Owner utk jejak sel isian Excel');
+} else {
+  check('G.fixture105 tersedia', false, 'dump reduced_data tidak ditemukan (skip via env?)');
+}
 
 // ================= RINGKASAN =================
 console.log(`\n${failures === 0 ? 'ALL PASS' : failures + ' FAILURE(S)'}`);
