@@ -1,31 +1,57 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
+import useTheme, { prefersDarkScheme } from '../../../../hooks/useTheme';
 import { KMEANS_PALETTE, FEATURE_OPTIONS } from '../../../../constants/kmeans';
 
 export default function ScatterBubble({
   assignments = [],
-  filterCluster = 'all',
   axisX = 'mtk_wajib',
   onAxisXChange,
   axisY = 'kemampuan',
   onAxisYChange,
 }) {
-  const filteredAssignments = useMemo(() => {
-    if (filterCluster === 'all') return assignments;
-    const targetClusterIndex = Number(filterCluster) - 1;
-    return assignments.filter(
-      (item) => Number(item.clusterIndex) === targetClusterIndex
-    );
-  }, [assignments, filterCluster]);
+  const { mode } = useTheme();
+  const isDark = mode === 'dark' || (mode === 'system' && prefersDarkScheme());
+
+  const lineColor = isDark ? '#3F3F46' : '#E4E4E7';
+  const labelColor = isDark ? '#A1A1AA' : '#52525B';
+  const cardBg = isDark ? '#18181B' : '#FFFFFF';
+
+  // Multi-toggle active clusters state: default all 10 true
+  const [activeClusters, setActiveClusters] = useState(
+    Array.from({ length: 10 }, () => true)
+  );
+
+  const toggleCluster = (index) => {
+    setActiveClusters((prev) => {
+      const next = [...prev];
+      next[index] = !next[index];
+      return next;
+    });
+  };
+
+  const visibleAssignments = useMemo(() => {
+    return assignments.filter((item) => {
+      const idx = Number(item.clusterIndex);
+      return activeClusters[idx] ?? true;
+    });
+  }, [assignments, activeClusters]);
 
   const labelX = FEATURE_OPTIONS.find((o) => o.value === axisX)?.label || axisX;
   const labelY = FEATURE_OPTIONS.find((o) => o.value === axisY)?.label || axisY;
 
-  const activeClusterIndex = filterCluster !== 'all' ? Number(filterCluster) - 1 : -1;
-
   const seriesList = useMemo(() => {
     return Array.from({ length: 10 }, (_, i) => {
-      const clusterItems = filteredAssignments.filter(
+      if (!activeClusters[i]) {
+        return {
+          name: `C${i + 1}`,
+          type: 'scatter',
+          data: [],
+          itemStyle: { color: KMEANS_PALETTE[i] },
+        };
+      }
+
+      const clusterItems = visibleAssignments.filter(
         (item) => Number(item.clusterIndex) === i
       );
 
@@ -62,21 +88,23 @@ export default function ScatterBubble({
         },
       };
     });
-  }, [filteredAssignments, axisX, axisY]);
+  }, [visibleAssignments, activeClusters, axisX, axisY]);
 
   const option = {
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'var(--color-card, #FFFFFF)',
-      borderColor: 'var(--color-line, #E2E8F0)',
-      textStyle: { color: 'var(--color-main, #0F172A)', fontSize: 12 },
+      backgroundColor: cardBg,
+      borderColor: lineColor,
+      textStyle: { color: isDark ? '#FAFAFA' : '#18181B', fontSize: 12 },
       formatter: (params) => {
         const raw = params.data?.rawItem;
         if (!raw) return '';
         const clusterNum = (Number(raw.clusterIndex) || 0) + 1;
+        const textColor = isDark ? '#FAFAFA' : '#18181B';
+        const mutedColor = isDark ? '#A1A1AA' : '#71717A';
         return `
-          <div style="font-weight:600;margin-bottom:4px;">${raw.nama} (${raw.nis})</div>
-          <div style="font-size:11px;color:var(--color-muted,#64748B);">
+          <div style="font-weight:600;margin-bottom:4px;color:${textColor}">${raw.nama} (${raw.nis})</div>
+          <div style="font-size:11px;color:${mutedColor}">
             Kelas: ${raw.kelas}<br/>
             Cluster: <b>C${clusterNum}</b><br/>
             ${labelX}: <b>${raw.xVal}</b><br/>
@@ -98,20 +126,20 @@ export default function ScatterBubble({
       name: labelX,
       nameLocation: 'middle',
       nameGap: 28,
-      nameTextStyle: { color: 'var(--color-muted, #64748B)', fontSize: 12, fontWeight: 500 },
-      axisLine: { lineStyle: { color: 'var(--color-line, #E2E8F0)' } },
-      splitLine: { lineStyle: { color: 'var(--color-line, #E2E8F0)', type: 'dashed' } },
-      axisLabel: { color: 'var(--color-muted, #64748B)', fontSize: 11 },
+      nameTextStyle: { color: labelColor, fontSize: 12, fontWeight: 500 },
+      axisLine: { lineStyle: { color: lineColor } },
+      splitLine: { lineStyle: { color: lineColor, type: 'dashed' } },
+      axisLabel: { color: labelColor, fontSize: 11 },
     },
     yAxis: {
       type: 'value',
       name: labelY,
       nameLocation: 'middle',
       nameGap: 36,
-      nameTextStyle: { color: 'var(--color-muted, #64748B)', fontSize: 12, fontWeight: 500 },
+      nameTextStyle: { color: labelColor, fontSize: 12, fontWeight: 500 },
       axisLine: { show: false },
-      splitLine: { lineStyle: { color: 'var(--color-line, #E2E8F0)', type: 'dashed' } },
-      axisLabel: { color: 'var(--color-muted, #64748B)', fontSize: 11 },
+      splitLine: { lineStyle: { color: lineColor, type: 'dashed' } },
+      axisLabel: { color: labelColor, fontSize: 11 },
     },
     series: seriesList,
   };
@@ -154,15 +182,17 @@ export default function ScatterBubble({
           </div>
         </div>
 
-        {/* Legend Chips C1-C10 */}
+        {/* Legend Chips C1-C10 Interactive Toggle */}
         <div className="flex flex-wrap items-center gap-1.5">
           {Array.from({ length: 10 }, (_, i) => {
-            const isDimmed = activeClusterIndex !== -1 && activeClusterIndex !== i;
+            const isActive = activeClusters[i];
             return (
-              <span
+              <button
                 key={i}
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-opacity ${
-                  isDimmed ? 'opacity-30' : 'opacity-100'
+                type="button"
+                onClick={() => toggleCluster(i)}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-all select-none cursor-pointer ${
+                  !isActive ? 'opacity-30 grayscale' : 'opacity-100'
                 }`}
                 style={{
                   backgroundColor: `${KMEANS_PALETTE[i]}15`,
@@ -175,7 +205,7 @@ export default function ScatterBubble({
                   style={{ backgroundColor: KMEANS_PALETTE[i] }}
                 />
                 C{i + 1}
-              </span>
+              </button>
             );
           })}
         </div>
@@ -184,6 +214,7 @@ export default function ScatterBubble({
       {/* Chart */}
       <div className="h-96 w-full">
         <ReactECharts
+          key={isDark ? 'dark' : 'light'}
           option={option}
           style={{ height: '100%', width: '100%' }}
           notMerge={true}
@@ -193,7 +224,7 @@ export default function ScatterBubble({
 
       {/* Dynamic Caption */}
       <div className="text-right text-xs font-medium text-muted">
-        N = <span className="font-bold text-main">{filteredAssignments.length}</span> data
+        N = <span className="font-bold text-main">{visibleAssignments.length}</span> data
       </div>
     </div>
   );

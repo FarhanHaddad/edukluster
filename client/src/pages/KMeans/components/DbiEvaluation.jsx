@@ -64,10 +64,10 @@ export default function DbiEvaluation({ runData }) {
       {/* 4. Komponen Perhitungan */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-main">Komponen Perhitungan</h3>
-        <div className="divide-y divide-line rounded-lg border border-line bg-card">
+        <div className="divide-y divide-line rounded-lg border border-line bg-card overflow-x-auto">
           {formulaRows.map((row, idx) => (
-            <div key={idx} className="flex items-center p-3 text-xs">
-              <span className="w-28 shrink-0 font-medium text-main">
+            <div key={idx} className="grid grid-cols-[minmax(240px,auto)_1fr] items-center p-3 text-xs gap-4">
+              <span className="font-medium text-main whitespace-nowrap min-w-[240px]">
                 <Formula latex={row.latex} />
               </span>
               <span className="text-muted">= {row.text}</span>
