@@ -13,8 +13,8 @@ export default function ChartTabs({ activeTab, onSelectTab, isRunExecuted, child
   const visibleTabs = KMEANS_TABS.filter((tab) => !tab.isAudit || isRunExecuted);
 
   return (
-    <div className="space-y-6">
-      <div className="border-b border-line">
+    <div className={isRunExecuted ? 'space-y-6' : 'flex flex-col flex-1'}>
+      <div className={isRunExecuted ? 'border-b border-line' : 'border-b border-line px-6 pt-6'}>
         <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
           {visibleTabs.map((tab) => {
             const Icon = TAB_ICONS[tab.id] || BarChart2;
@@ -38,7 +38,7 @@ export default function ChartTabs({ activeTab, onSelectTab, isRunExecuted, child
         </nav>
       </div>
 
-      <div className="min-h-100">
+      <div className={isRunExecuted ? 'min-h-100' : 'flex-1 flex flex-col'}>
         {children}
       </div>
     </div>

@@ -143,19 +143,21 @@ export default function KMeansPage() {
         <div className="space-y-6">
           <StatCards runData={runData} isRunExecuted={isRunExecuted} />
 
-          <Card className="p-6 space-y-4">
+          <Card className={isRunExecuted ? "p-6 space-y-4" : "flex flex-col p-0 overflow-hidden"}>
             <ChartTabs
               activeTab={activeTab}
               onSelectTab={setActiveTab}
               isRunExecuted={isRunExecuted}
             >
               {!isRunExecuted ? (
-                <div className="space-y-6">
+                <div className="flex-1 flex flex-col">
                   {runActionError ? (
-                    <InfoBanner tone="danger">{runActionError}</InfoBanner>
+                    <div className="px-6 pt-4">
+                      <InfoBanner tone="danger">{runActionError}</InfoBanner>
+                    </div>
                   ) : null}
 
-                  <div className="py-12 flex flex-col items-center justify-center text-center">
+                  <div className="flex-1 py-12 px-6 flex flex-col items-center justify-center text-center">
                     <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-brand-tint text-brand">
                       <BarChart2 className="size-6 text-brand" />
                     </div>
@@ -163,7 +165,7 @@ export default function KMeansPage() {
                     <p className="mt-1 text-sm text-muted">Jalankan K-Means untuk melihat visualisasi.</p>
                   </div>
 
-                  <div className="border-t border-line pt-4 flex justify-end">
+                  <div className="border-t border-line px-6 py-4 flex justify-end">
                     <Button
                       variant="primary"
                       onClick={handleRunKMeans}
