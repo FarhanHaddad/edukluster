@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import useTheme, { prefersDarkScheme } from '../../../../hooks/useTheme';
-import { KMEANS_PALETTE, FEATURE_OPTIONS } from '../../../../constants/kmeans';
+import { KMEANS_PALETTE, SCATTER_AXIS_OPTIONS } from '../../../../constants/kmeans';
+
+const CATEGORY_TICKS = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10'];
 
 export default function ScatterBubble({
   assignments = [],
@@ -37,8 +39,11 @@ export default function ScatterBubble({
     });
   }, [assignments, activeClusters]);
 
-  const labelX = FEATURE_OPTIONS.find((o) => o.value === axisX)?.label || axisX;
-  const labelY = FEATURE_OPTIONS.find((o) => o.value === axisY)?.label || axisY;
+  const labelX = SCATTER_AXIS_OPTIONS.find((o) => o.value === axisX)?.label || axisX;
+  const labelY = SCATTER_AXIS_OPTIONS.find((o) => o.value === axisY)?.label || axisY;
+
+  const nameX = axisX === 'cluster' ? 'X: CLUSTER (C1 - C10)' : labelX;
+  const nameY = axisY === 'cluster' ? 'Y: CLUSTER (C1 - C10)' : labelY;
 
   const seriesList = useMemo(() => {
     return Array.from({ length: 10 }, (_, i) => {
@@ -56,9 +61,13 @@ export default function ScatterBubble({
       );
 
       const data = clusterItems.map((item) => {
-        const xVal = parseFloat(item.features?.[axisX] ?? 0);
-        const yVal = parseFloat(item.features?.[axisY] ?? 0);
+        const clusterIdx = Number(item.clusterIndex) || 0;
+        const xVal = axisX === 'cluster' ? clusterIdx : parseFloat(item.features?.[axisX] ?? 0);
+        const yVal = axisY === 'cluster' ? clusterIdx : parseFloat(item.features?.[axisY] ?? 0);
         const dist = parseFloat(item.distance ?? 0);
+
+        const xDisplay = axisX === 'cluster' ? `C${clusterIdx + 1}` : xVal;
+        const yDisplay = axisY === 'cluster' ? `C${clusterIdx + 1}` : yVal;
 
         return {
           value: [xVal, yVal, dist],
@@ -75,6 +84,8 @@ export default function ScatterBubble({
             distance: item.distance,
             xVal,
             yVal,
+            xDisplay,
+            yDisplay,
           },
         };
       });
@@ -102,14 +113,21 @@ export default function ScatterBubble({
         const clusterNum = (Number(raw.clusterIndex) || 0) + 1;
         const textColor = isDark ? '#FAFAFA' : '#18181B';
         const mutedColor = isDark ? '#A1A1AA' : '#71717A';
+
+        const featureLines = [];
+        if (axisX !== 'cluster') {
+          featureLines.push(`${labelX}: <b>${raw.xDisplay}</b>`);
+        }
+        if (axisY !== 'cluster') {
+          featureLines.push(`${labelY}: <b>${raw.yDisplay}</b>`);
+        }
+
         return `
           <div style="font-weight:600;margin-bottom:4px;color:${textColor}">${raw.nama} (${raw.nis})</div>
           <div style="font-size:11px;color:${mutedColor}">
             Kelas: ${raw.kelas}<br/>
             Cluster: <b>C${clusterNum}</b><br/>
-            ${labelX}: <b>${raw.xVal}</b><br/>
-            ${labelY}: <b>${raw.yVal}</b><br/>
-            Distance: <b>${raw.distance}</b>
+            ${featureLines.length > 0 ? featureLines.join('<br/>') + '<br/>' : ''}Distance: <b>${raw.distance}</b>
           </div>
         `;
       },
@@ -122,8 +140,9 @@ export default function ScatterBubble({
       containLabel: true,
     },
     xAxis: {
-      type: 'value',
-      name: labelX,
+      type: axisX === 'cluster' ? 'category' : 'value',
+      data: axisX === 'cluster' ? CATEGORY_TICKS : undefined,
+      name: nameX,
       nameLocation: 'middle',
       nameGap: 28,
       nameTextStyle: { color: labelColor, fontSize: 12, fontWeight: 500 },
@@ -132,8 +151,9 @@ export default function ScatterBubble({
       axisLabel: { color: labelColor, fontSize: 11 },
     },
     yAxis: {
-      type: 'value',
-      name: labelY,
+      type: axisY === 'cluster' ? 'category' : 'value',
+      data: axisY === 'cluster' ? CATEGORY_TICKS : undefined,
+      name: nameY,
       nameLocation: 'middle',
       nameGap: 36,
       nameTextStyle: { color: labelColor, fontSize: 12, fontWeight: 500 },
@@ -157,7 +177,7 @@ export default function ScatterBubble({
               onChange={(e) => onAxisXChange?.(e.target.value)}
               className="h-8 rounded-md border border-line bg-card px-2 text-xs font-medium text-main shadow-sm focus:border-brand focus:outline-none"
             >
-              {FEATURE_OPTIONS.map((opt) => (
+              {SCATTER_AXIS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -173,7 +193,7 @@ export default function ScatterBubble({
               onChange={(e) => onAxisYChange?.(e.target.value)}
               className="h-8 rounded-md border border-line bg-card px-2 text-xs font-medium text-main shadow-sm focus:border-brand focus:outline-none"
             >
-              {FEATURE_OPTIONS.map((opt) => (
+              {SCATTER_AXIS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -204,7 +224,7 @@ export default function ScatterBubble({
                   className="size-1.5 rounded-full"
                   style={{ backgroundColor: KMEANS_PALETTE[i] }}
                 />
-                C{i + 1}
+                C${i + 1}
               </button>
             );
           })}
@@ -224,7 +244,7 @@ export default function ScatterBubble({
 
       {/* Dynamic Caption */}
       <div className="text-right text-xs font-medium text-muted">
-        N = <span className="font-bold text-main">{visibleAssignments.length}</span> data
+        N = <span className="font-bold text-main">${visibleAssignments.length}</span> data
       </div>
     </div>
   );
