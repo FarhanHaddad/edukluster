@@ -1,10 +1,17 @@
 // Engine K-Means Lloyd murni (tanpa Prisma/HTTP) - TIKET BE-KM-1.
 // Index baris seed & urutan fitur DIIMPOR dari kmeans.seed.js (DILARANG duplikat/hardcode angka).
-// Rezim presisi R-KM-36 (TIKET BE-KM-2 R4): setiap koordinat centroid hasil UPDATE dibulatkan
-// HALF_UP 4 desimal SEBELUM dipakai iterasi berikutnya dan sebelum dikembalikan; jarak dihitung
-// presisi penuh dari operand 4-desimal lalu dibulatkan 4 desimal pada output distances;
-// seed = baris tersimpan apa adanya; DILARANG rounding di tengah akumulasi mean (bulatkan hanya
-// di batas: setelah pembagian rata-rata selesai).
+// Rezim presisi TERKUNCI MODE A (TIKET BE-KM-3, bridge kmeans.regime.bridge.js): setiap koordinat
+// centroid hasil UPDATE dibulatkan HALF_UP ke PRECISION_REGIME.decimals desimal SEBELUM dipakai
+// iterasi berikutnya dan sebelum dikembalikan; jarak dihitung presisi penuh dari operand tsb lalu
+// dibulatkan pada output distances; seed = baris tersimpan apa adanya; DILARANG rounding di tengah
+// akumulasi mean (bulatkan hanya di batas: setelah pembagian rata-rata selesai).
+// HASIL BRIDGE BE-KM-3: MODE A (4dp), MODE B (presisi penuh, bulat hanya boundary simpan/display),
+// dan MODE C (3dp) menghasilkan trajectory IDENTIK [105,16,10,5,1,0] convergedAt 5 distribusi
+// [3,3,23,3,14,26,5,12,9,7] -> TIDAK ADA mode yang mereproduksi oracle Excel skripsi
+// ([105,14,7,2,0], convergedAt 4, [3,3,22,5,14,26,5,12,8,7]). Sesuai AC: STOP & LAPOR; engine
+// TIDAK diubah perilakunya (tetap Mode A sebagai rezim produksi default sampai Owner menindaklanjuti
+// laporan input). Variabel PRECISION_REGIME di bawah adalah satu-satunya tuas regime untuk
+// eksperimen QA lanjutan; perubahan nilai desimal tidak mengubah hasil pada fixture 105 baris.
 // Refactor readability BE-KM-1.5: tanpa variabel 1 huruf, ZERO perubahan logika.
 // Refactor seed BE-KM-1.6: centroid awal DIEKSTRAK DINAMIS dari baris dataset (anti precision drift).
 
@@ -14,13 +21,25 @@ const { SEED_ROW_INDICES, FEATURE_ORDER } = require('./kmeans.seed');
 
 const DIM = FEATURE_ORDER.length; // 25
 
-// Bulatkan HALF_UP ke 4 desimal (rezim R-KM-36). Epsilon EPSILON*|scaled| mengoreksi
-// representasi biner float (mis. 0.1505*10^4 -> 1504.9999...) agar tepat setengah naik.
-function round4(value) {
-  if (!Number.isFinite(value)) return value;
-  const scaled = value * 10000;
-  return Math.round(scaled + Number.EPSILON * Math.abs(scaled)) / 10000;
+// ---- TIKET BE-KM-3: presisi regime TERKUNCI.
+// Hasil bridge (lihat header): Mode A/B/C menghasilkan trajectory yang sama pada fixture
+// reduced_data 105 baris, sehingga pembulatan intermediat BUKAN penyebab selisih vs oracle
+// Excel. Keputusan: kunci rezim produksi = MODE A (intermediat HALF_UP 4 desimal), nilai lama,
+// nol perubahan perilaku. `decimals: null` berarti presisi penuh (Mode B) — hanya untuk QA.
+const PRECISION_REGIME = Object.freeze({ mode: 'A', decimals: 4 });
+
+// Bulatkan HALF_UP ke PRECISION_REGIME.decimals desimal (default 4, rezim R-KM-36/BE-KM-3).
+// Epsilon EPSILON*|scaled| mengoreksi representasi biner float (mis. 0.1505*10^4 -> 1504.9999...)
+// agar tepat setengah naik. decimals=null -> tanpa pembulatan (presisi penuh, Mode B/QA).
+function roundRegime(value, decimals = PRECISION_REGIME.decimals) {
+  if (!Number.isFinite(value) || decimals === null) return value;
+  const factor = 10 ** decimals;
+  const scaled = value * factor;
+  return Math.round(scaled + Number.EPSILON * Math.abs(scaled)) / factor;
 }
+
+// Nama historis tetap diekspor (dipakai test/service); identik dengan roundRegime default 4dp.
+const round4 = roundRegime;
 
 /**
  * Jarak Euclidean antar dua vektor berdimensi sama.
@@ -184,4 +203,4 @@ function runKMeans(rows, opts = {}) {
   };
 }
 
-module.exports = { runKMeans, euclid, nearestCentroid, round4 };
+module.exports = { runKMeans, euclid, nearestCentroid, round4, roundRegime, PRECISION_REGIME };
