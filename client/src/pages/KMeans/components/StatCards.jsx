@@ -12,7 +12,7 @@ export default function StatCards({ runData, isRunExecuted }) {
   const convergedAt = runData?.convergedAt ?? null;
 
   let statusLabel = 'Belum dijalankan';
-  let badgeTone = 'secondary'; // muted / gray style
+  let badgeTone = 'secondary';
 
   if (isRunExecuted) {
     if (runData?.status === 'FAILED') {
@@ -65,9 +65,9 @@ export default function StatCards({ runData, isRunExecuted }) {
         </p>
         <div className="mt-2 flex items-center justify-between">
           <Badge tone={badgeTone}>{statusLabel}</Badge>
-          <span className="text-xs text-muted">
-            {isRunExecuted && convergedAt ? `Pada iterasi ${convergedAt}` : 'Proses K-Means'}
-          </span>
+          {isRunExecuted && (convergedAt !== null && convergedAt !== undefined) ? (
+            <span className="text-xs text-muted">pada iterasi {convergedAt}</span>
+          ) : null}
         </div>
       </Card>
     </div>

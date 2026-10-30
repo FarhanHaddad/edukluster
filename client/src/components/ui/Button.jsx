@@ -12,6 +12,8 @@ const buttonVariants = cva(
       variant: {
         // CTA solid: light #A64DC4/hover #8F39AC/active #793191; dark #BE7DD4/#B266CC, on-brand #18181B.
         solid: 'bg-brand text-on-brand hover:bg-brand-hover active:bg-brand-active',
+        // Alias primary untuk solid
+        primary: 'bg-brand text-on-brand hover:bg-brand-hover active:bg-brand-active',
         // Outline: transparan, border kuat, teks ink (DARK MODE CONTRACT).
         outline: 'border border-line-strong bg-transparent text-ink hover:bg-brand-tint',
         // Emphasis: aksi brand-contextual (mis. Jalankan Preprocessing / Eksekusi K-Means).

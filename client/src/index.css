@@ -107,6 +107,8 @@
   --color-ink: var(--text);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
+  --color-primary: var(--brand);
+  --color-on-primary: var(--on-brand);
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
   --color-brand-active: var(--brand-active);

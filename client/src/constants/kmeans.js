@@ -61,8 +61,8 @@ export const EMPTY_STATE_COPY = {
     cta: 'Buka Preprocessing',
   },
   NO_RUN: {
-    title: 'K-Means Belum Dijalankan',
-    description: 'Klik tombol "Jalankan K-Means" untuk mengelompokkan data siswa periode ini.',
+    title: 'Belum ada hasil clustering',
+    description: 'Jalankan K-Means untuk melihat visualisasi.',
     cta: 'Jalankan K-Means',
   },
 };

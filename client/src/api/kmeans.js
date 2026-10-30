@@ -4,7 +4,7 @@ export const getLatestKMeansRun = async (periodeId) => {
   const response = await api.get('/kmeans/runs/latest', {
     params: { periodeId },
   });
-  return response.data;
+  return response.data?.data;
 };
 
 export const getKMeansCentroids = async (periodeId, iterationNumber) => {
@@ -12,12 +12,12 @@ export const getKMeansCentroids = async (periodeId, iterationNumber) => {
     `/kmeans/runs/latest/iterations/${iterationNumber}/centroids`,
     { params: { periodeId } }
   );
-  return response.data;
+  return response.data?.data;
 };
 
 export const runKMeans = async (periodeId) => {
   const response = await api.post('/kmeans/runs', null, {
     params: { periodeId },
   });
-  return response.data;
+  return response.data?.data;
 };
