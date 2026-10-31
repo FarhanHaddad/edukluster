@@ -285,7 +285,7 @@ export default function IterationHistory({ runData, periodeId }) {
       <div className="flex items-center gap-2 text-xs text-muted pt-2 border-t border-line">
         <Info className="size-3.5 shrink-0" />
         <span>
-          Hasil komputasi riwayat iterasi menggunakan algoritma Standar Lloyd K-Means.
+          Hasil komputasi iterasi menggunakan algoritma K-Means.
         </span>
       </div>
     </div>
