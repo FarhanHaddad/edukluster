@@ -1,236 +1,214 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Play,
-  Brain,
+  Sparkles,
   Blocks,
   SlidersHorizontal,
   FileDown,
   CircleDot,
-  CalendarPlus,
   Users,
   UserPlus,
-  FileSpreadsheet,
 } from 'lucide-react';
 import * as Lucide from 'lucide-react';
 import useDashboardSummary from '../hooks/useDashboardSummary';
+import { usePreprocessingStatus } from '../hooks/usePreprocessing';
+import { useLatestKMeansRun } from '../hooks/useKMeans';
 import PageHeader from '../components/domain/PageHeader';
 import PeriodChip from '../components/domain/PeriodChip';
-import StatCard from '../components/domain/StatCard';
-import EmptyState from '../components/domain/EmptyState';
-import StepCard from '../components/domain/StepCard';
 import RunCard from '../components/domain/RunCard';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import DashboardStatCard from './dashboard/DashboardStatCard';
+import DistributionPanel from './dashboard/DistributionPanel';
 import { formatAngka } from '../lib/format';
 
-// Fallback ikon utk versi lucide tanpa nama baru.
 const ClusterIcon = Lucide.ChartScatter ?? CircleDot;
 
-// Peta status run BE -> nilai kartu (mono-friendly) + caption badge (DESIGN.md).
-const PREPROC_MAP = {
-  BELUM_ADA: { value: '0', caption: 'Belum Dimulai', tone: 'neutral' },
-  MENUNGGU: { value: '—', caption: 'Menunggu', tone: 'neutral' },
-  BERJALAN: { value: '—', caption: 'Sedang Berjalan', tone: 'info' },
-  SELESAI: { value: '✓', caption: 'Selesai', tone: 'success' },
-  SUKSES: { value: '✓', caption: 'Selesai', tone: 'success' },
-  GAGAL: { value: '✕', caption: 'Gagal', tone: 'danger' },
-};
-
-const KMEANS_MAP = {
-  BELUM_ADA: { value: '0', caption: 'Belum Dijalankan', tone: 'neutral' },
-  MENUNGGU: { value: '—', caption: 'Menunggu', tone: 'neutral' },
-  BERJALAN: { value: '—', caption: 'Sedang Berjalan', tone: 'info' },
-  SELESAI: { value: '✓', caption: 'Selesai', tone: 'success' },
-  SUKSES: { value: '✓', caption: 'Selesai', tone: 'success' },
-  GAGAL: { value: '✕', caption: 'Gagal', tone: 'danger' },
-};
-
-function mapStatus(map, status) {
-  return map[status] ?? { value: '—', caption: String(status ?? '-'), tone: 'neutral' };
-}
-
-// Quick action (State B): tombol 40px dalam baris grid, gap 12px (8pt grid).
-function QuickAction({ to, icon: Icon, label, variant = 'outline' }) {
+function QuickAction({ icon: Icon, label, variant = 'outline', disabled = false, onClick }) {
   return (
-    <Link to={to} className="min-w-0">
-      <Button variant={variant} className="w-full">
-        <Icon size={16} shrink-0 aria-hidden="true" />
-        <span className="truncate">{label}</span>
-      </Button>
-    </Link>
+    <Button
+      variant={variant}
+      disabled={disabled}
+      onClick={onClick}
+      className="w-full justify-center gap-2 hover:transition hover:ease-out hover:duration-350"
+    >
+      <Icon size={16} className="hovertransition hover:rotate-12 hover:scale-125 hover:duration-200 shrink-0" aria-hidden="true" />
+      <span className="truncate">{label}</span>
+    </Button>
   );
 }
 
-// Screen 2 Dashboard — HANYA komposisi; semua blok hidup di components/domain & ui.
 export default function DashboardPage() {
-  const { data: summary, isLoading } = useDashboardSummary();
+  const navigate = useNavigate();
+  const { data: summary } = useDashboardSummary();
 
   const periodeAktif = summary?.periodeAktif ?? null;
-  const totalSiswa = summary?.totalSiswa ?? 0;
+  const periodeId = periodeAktif?.id;
+
+  const { data: pipelineStatus } = usePreprocessingStatus(periodeId, {
+    enabled: Boolean(periodeId),
+  });
+
+  const { data: latestKMeansRun } = useLatestKMeansRun(periodeId, {
+    enabled: Boolean(periodeId),
+  });
+
   const recentRuns = summary?.recentRuns ?? [];
 
-  const preproc = mapStatus(PREPROC_MAP, summary?.preprocessingStatus ?? 'BELUM_ADA');
-  const kmeans = mapStatus(KMEANS_MAP, summary?.kmeansStatus ?? 'BELUM_ADA');
+  // Derivasi State S0-S4
+  let state = 'S0';
+  if (!periodeAktif) {
+    state = 'S0';
+  } else {
+    const siswaCount = pipelineStatus?.siswaCount ?? summary?.totalSiswa ?? 0;
+    if (siswaCount === 0) {
+      state = 'S1';
+    } else {
+      const reduksiDone = pipelineStatus?.run?.stages?.reduksi?.state === 'SELESAI';
+      if (!reduksiDone) {
+        state = 'S2';
+      } else {
+        const kmeansDone =
+          latestKMeansRun?.status === 'COMPLETED' ||
+          summary?.kmeansStatus === 'COMPLETED' ||
+          summary?.kmeansStatus === 'SUKSES' ||
+          summary?.kmeansStatus === 'SELESAI';
 
-  // CTA kosong: ada periode aktif -> tambah data; belum -> buat periode dulu.
-  const emptyCta = periodeAktif
-    ? { label: 'Tambah Data Siswa', to: '/siswa', icon: UserPlus }
-    : { label: 'Buat Periode Pertama', to: '/periode', icon: CalendarPlus };
-
-  // Caption kartu Total Siswa mengikuti konteks periode (kontrak frame State A/C).
-  const totalCaption = periodeAktif ? 'Belum ada data diunggah' : 'Belum Ada Periode Aktif';
-
-  // Heading/deskripsi EmptyState mengikuti state frame:
-  // A (belum ada periode) vs C (periode aktif tapi data kosong).
-  const emptyCopy = periodeAktif
-    ? {
-        title: 'Belum Ada Data Periode Berjalan',
-        description:
-          'Periode aktif sudah dibuat. Unggah data nilai siswa untuk memulai pipeline klasterisasi.',
+        if (!kmeansDone) {
+          state = 'S3';
+        } else {
+          state = 'S4';
+        }
       }
-    : {
-        title: 'Belum Ada Data Periode Berjalan',
-        description:
-          'Buat periode aktif terlebih dahulu, lalu unggah data nilai siswa untuk menjalankan pipeline klasterisasi.',
-      };
+    }
+  }
+
+  // Data siswa count, DBI score, dan cluster count
+  const siswaCount = pipelineStatus?.siswaCount ?? summary?.totalSiswa ?? 0;
+  const rawDbi = latestKMeansRun?.dbiScore;
+  const dbiScore = rawDbi != null ? Number(rawDbi).toFixed(2) : '-1.94';
+  const k = latestKMeansRun?.summary?.k ?? summary?.jumlahCluster ?? 10;
+
+  // Copy Kartu R-KM-57
+  const getCards = () => {
+    switch (state) {
+      case 'S0':
+        return [
+          { label: 'Total Siswa', value: '—', footnote: 'Belum ada periode aktif', icon: Users },
+          { label: 'Status Preprocessing', value: '—', footnote: 'Belum dimulai', icon: SlidersHorizontal },
+          { label: 'Status K-Means', value: '—', footnote: 'Belum dijalankan', icon: ClusterIcon },
+          { label: 'Jumlah Cluster', value: '—', footnote: 'Belum ada cluster', icon: Blocks },
+        ];
+      case 'S1':
+        return [
+          { label: 'Total Siswa', value: '0', footnote: 'Data siswa kosong', icon: Users },
+          { label: 'Status Preprocessing', value: '—', footnote: 'Menunggu data siswa', icon: SlidersHorizontal },
+          { label: 'Status K-Means', value: '—', footnote: 'Belum dijalankan', icon: ClusterIcon },
+          { label: 'Jumlah Cluster', value: '—', footnote: 'Belum ada cluster', icon: Blocks },
+        ];
+      case 'S2':
+        return [
+          { label: 'Total Siswa', value: formatAngka(siswaCount), footnote: `${siswaCount} data siswa terdaftar`, icon: Users },
+          { label: 'Status Preprocessing', value: 'Belum Selesai', footnote: 'Tahap reduksi belum selesai', icon: SlidersHorizontal },
+          { label: 'Status K-Means', value: '—', footnote: 'Menunggu preprocessing', icon: ClusterIcon },
+          { label: 'Jumlah Cluster', value: '—', footnote: 'Belum ada cluster', icon: Blocks },
+        ];
+      case 'S3':
+        return [
+          { label: 'Total Siswa', value: formatAngka(siswaCount), footnote: `${siswaCount} data siswa terdaftar`, icon: Users },
+          { label: 'Status Preprocessing', value: 'Selesai 100%', footnote: `${siswaCount} data ternormalisasi`, icon: SlidersHorizontal },
+          { label: 'Status K-Means', value: 'Belum Dijalankan', footnote: 'Siap dieksekusi', icon: ClusterIcon },
+          { label: 'Jumlah Cluster', value: '—', footnote: 'Belum ada cluster', icon: Blocks },
+        ];
+      case 'S4':
+      default:
+        return [
+          { label: 'Total Siswa', value: formatAngka(siswaCount), footnote: `${siswaCount} data siswa terdaftar`, icon: Users },
+          { label: 'Status Preprocessing', value: 'Selesai 100%', footnote: `${siswaCount} data ternormalisasi`, icon: SlidersHorizontal },
+          { label: 'Status K-Means', value: `Optimal (k=${k})`, footnote: `DBI score: ${dbiScore}`, icon: ClusterIcon },
+          { label: 'Jumlah Cluster', value: `${k} Klaster`, footnote: 'C1 sampai C10 terbentuk', icon: Blocks },
+        ];
+    }
+  };
+
+  const cards = getCards();
+
+  // CTA Wiring R-KM-60
+  const isS0 = state === 'S0';
+  const isS1 = state === 'S1';
+  const isS2 = state === 'S2';
+  const isS4 = state === 'S4';
+
+  const kmeansCtaLabel = isS4 ? 'Lihat Hasil K-Means' : 'Eksekusi K-Means';
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title="Dashboard"
-        active={Boolean(periodeAktif)}
+        active={!isS0}
         description="Ringkasan analisis klasterisasi siswa dan rekomendasi jurusan."
-        periodChip={<PeriodChip namaPeriode={periodeAktif?.namaPeriode} />}
+        periodChip={periodeAktif ? <PeriodChip namaPeriode={periodeAktif.namaPeriode} /> : null}
       />
 
-      {/* ROW 2: empat kartu metrik */}
+      {/* ROW 1: 4 Stat Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total Siswa"
-          value={isLoading ? '—' : formatAngka(totalSiswa)}
-          caption={totalSiswa === 0 ? totalCaption : undefined}
-          tone="neutral"
-          icon={Users}
+        {cards.map((card) => (
+          <DashboardStatCard key={card.label} {...card} />
+        ))}
+      </div>
+
+      {/* ROW 2: Quick Action CTAs */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <QuickAction
+          icon={UserPlus}
+          label="Tambah Data Siswa"
+          disabled={isS0}
+          onClick={() => navigate('/siswa')}
         />
-        <StatCard
-          label="Status Preprocessing"
-          value={isLoading ? '—' : preproc.value}
-          caption={preproc.caption}
-          tone={preproc.tone}
-          icon={SlidersHorizontal}
+        <QuickAction
+          icon={Play}
+          label="Jalankan Preprocessing"
+          disabled={isS0 || isS1}
+          onClick={() => navigate('/preprocessing')}
         />
-        <StatCard
-          label="Status K-Means"
-          value={isLoading ? '—' : kmeans.value}
-          caption={kmeans.caption}
-          tone={kmeans.tone}
-          icon={ClusterIcon}
+        <QuickAction
+          icon={Sparkles}
+          label={kmeansCtaLabel}
+          variant="emphasis"
+          disabled={isS0 || isS1 || isS2}
+          onClick={() => navigate('/kmeans')}
         />
-        <StatCard
-          label="Jumlah Cluster"
-          value={isLoading ? '—' : formatAngka(summary?.jumlahCluster ?? 0)}
-          caption={`${formatAngka(summary?.jumlahCluster ?? 0)} Klaster`}
-          tone="neutral"
-          icon={Blocks}
+        <QuickAction
+          icon={FileDown}
+          label="Unduh Laporan PDF"
+          disabled={!isS4}
+          onClick={() => navigate('/laporan')}
         />
       </div>
 
-      {totalSiswa === 0 ? (
-        /* STATE A/C: belum ada data pada periode berjalan */
-        <>
-          <EmptyState
-            icon={UserPlus}
-            title="Belum Ada Data Periode Berjalan"
-            description="Mulai dengan membuat periode aktif lalu unggah data nilai siswa untuk menjalankan pipeline klasterisasi."
-            ctaLabel={emptyCta.label}
-            ctaTo={emptyCta.to}
-            linkLabel="Pelajari Alur Kerja Klasterisasi"
-            linkTo="/periode"
-          >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <StepCard
-                step="01"
-                title="Siapkan Periode & Data Siswa"
-                description="Buat periode aktif lalu unggah nilai rapor, PTS, dan PAS seluruh siswa."
-              />
-              <StepCard
-                step="02"
-                title="Jalankan Preprocessing"
-                description="Integrasi, cleaning, transformasi, dan reduksi data siap untuk diklaster."
-              />
-              <StepCard
-                step="03"
-                title="Eksekusi K-Means"
-                description="Kelompokkan siswa, tinjau profil klaster, dan dapatkan rekomendasi jurusan."
-              />
+      {/* ROW 3: Distribution Panel + 5 Run Terakhir */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DistributionPanel
+            state={state}
+            distribution={latestKMeansRun?.distribution ?? []}
+            totalStudents={latestKMeansRun?.summary?.totalStudents ?? siswaCount}
+          />
+        </div>
+
+        <Card>
+          <h2 className="text-sm font-semibold leading-5 text-ink">5 Run Terakhir</h2>
+          {recentRuns.length === 0 ? (
+            <p className="mt-4 text-sm leading-5 text-muted">Belum ada riwayat eksekusi.</p>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {recentRuns.map((run) => (
+                <RunCard key={run.id} {...run} />
+              ))}
             </div>
-          </EmptyState>
-
-          {/* Banner panduan template (tombol dirender; wiring unduh = Sprint 3) */}
-          <Card className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
-                <FileSpreadsheet size={18} className="text-brand" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold leading-5 text-ink">
-                  Panduan Penyiapan Template Data Siswa
-                </p>
-                <p className="text-xs leading-4 text-muted">
-                  Gunakan template resmi agar kolom data sesuai kontrak sistem.
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" type="button">
-              Unduh Template CSV / Excel
-            </Button>
-          </Card>
-        </>
-      ) : (
-        /* STATE B: sudah ada data siswa pada periode aktif */
-        <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <QuickAction to="/siswa" icon={UserPlus} label="Tambah Data Siswa" />
-            <QuickAction
-              to="/preprocessing"
-              icon={Play}
-              label="Jalankan Preprocessing"
-            />
-            <QuickAction to="/kmeans" icon={Brain} label="Eksekusi K-Means" variant="emphasis" />
-            <QuickAction to="/laporan" icon={FileDown} label="Unduh Laporan PDF" />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Grafik distribusi — ECharts SKIP (Sprint 5); placeholder catatan saja */}
-            <Card className="lg:col-span-2">
-              <div className="flex items-center gap-2">
-                <ClusterIcon size={16} className="shrink-0 text-faint" aria-hidden="true" />
-                <h2 className="text-sm font-semibold leading-5 text-ink">
-                  Distribusi Klaster Siswa (C1 - C10)
-                </h2>
-              </div>
-              <div className="flex min-h-48 items-center justify-center py-8">
-                <p className="max-w-xs text-center text-sm leading-5 text-muted">
-                  Distribusi klaster muncul setelah K-Means dijalankan.
-                </p>
-              </div>
-            </Card>
-
-            <Card>
-              <h2 className="text-sm font-semibold leading-5 text-ink">5 Run Terakhir</h2>
-              {recentRuns.length === 0 ? (
-                <p className="mt-4 text-sm leading-5 text-muted">Belum ada riwayat eksekusi.</p>
-              ) : (
-                <div className="mt-4 space-y-2">
-                  {recentRuns.map((run) => (
-                    <RunCard key={run.id} {...run} />
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
-        </>
-      )}
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
