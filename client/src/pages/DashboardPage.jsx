@@ -30,9 +30,9 @@ function QuickAction({ icon: Icon, label, variant = 'outline', disabled = false,
       variant={variant}
       disabled={disabled}
       onClick={onClick}
-      className="w-full justify-center gap-2"
+      className="w-full justify-center gap-2 hover:transition hover:ease-out hover:duration-350"
     >
-      <Icon size={16} className="shrink-0" aria-hidden="true" />
+      <Icon size={16} className="hovertransition hover:rotate-12 hover:scale-125 hover:duration-200 shrink-0" aria-hidden="true" />
       <span className="truncate">{label}</span>
     </Button>
   );
