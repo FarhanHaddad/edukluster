@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   Play,
-  Brain,
+  Sparkles,
   Blocks,
   SlidersHorizontal,
   FileDown,
@@ -172,7 +172,7 @@ export default function DashboardPage() {
           onClick={() => navigate('/preprocessing')}
         />
         <QuickAction
-          icon={Brain}
+          icon={Sparkles}
           label={kmeansCtaLabel}
           variant="emphasis"
           disabled={isS0 || isS1 || isS2}
