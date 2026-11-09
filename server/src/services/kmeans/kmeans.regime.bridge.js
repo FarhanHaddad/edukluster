@@ -1,7 +1,11 @@
 // QA-ONLY bridge rezim presisi — TIKET BE-KM-5 (Mode D). TIDAK di-require route/service mana pun.
+// STATUS PASCA BE-KM-6: produksi = MODE D (R-KM-36 v3, jarak bulat HALF_UP 4dp di titik
+// perbandingan — lihat kmeans.engine.js). Bridge DIPERTAHANKAN sebagai instrumen divergensi
+// WAJIB tiap dataset periode baru: jalankan sebelum mengunci/meregenerasi oracle Fixture G;
+// bila baris [DIVERGEN] tidak kosong atau Mode D != ORACLE_MANUAL -> STOP & LAPOR Owner.
 // Jalankan: node server/src/services/kmeans/kmeans.regime.bridge.js
 // Bandingkan pada fixture reduced_data 105 baris (server/DB/edukluster_widuri.sql, ORDER BY id ASC):
-//   MODE A = perilaku engine produksi SEKARANG: centroid hasil update dibulatkan HALF_UP 4 dp di
+//   MODE A = perilaku engine produksi LAMA (pra BE-KM-6): centroid hasil update dibulatkan HALF_UP 4 dp di
 //            batas; jarak dihitung presisi penuh dari operand tsb saat perbandingan (tanpa bulat).
 //   MODE D = rezim manual Owner: jarak EUCLIDEAN dibulatkan HALF_UP 4 dp SEGERA setelah sqrt; nilai
 //            bulat itu yang dipakai penempatan cluster (perbandingan & tie-break) DAN yang disimpan;
