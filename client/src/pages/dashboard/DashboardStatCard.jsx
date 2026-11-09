@@ -11,7 +11,7 @@ export default function DashboardStatCard({ label, value, footnote, icon: Icon, 
         {Icon ? <Icon size={18} className="shrink-0 text-faint" aria-hidden="true" /> : null}
       </div>
       <div className="flex flex-1 items-center justify-center py-1">
-        <span className="font-mono text-[25px]  font-semibold text-center leading-none whitespace-nowrap">
+        <span className="font-mono text-xl font-semibold text-center leading-none whitespace-nowrap">
           {value}
         </span>
       </div>
