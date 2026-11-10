@@ -8,4 +8,7 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    chunkSizeWarningLimit: 1000, // Naikkan batas jadi 1MB biar Vite ga ngomel
+  },
 });

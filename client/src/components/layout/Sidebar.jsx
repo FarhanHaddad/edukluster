@@ -18,7 +18,7 @@ import widuri from '../../assets/widuri.png';
 // Ikon terkunci (DESIGN.md SHELL LOCK) dengan fallback aman bila nama tidak
 // tersedia di versi lucide terpasang — akses dinamis, BUKAN named import.
 const KmeansIcon = Lucide.ChartScatter ?? CircleDot;
-const AdminIcon = Lucide.ShieldSettings ?? UserCog;
+const AdminIcon = Lucide.UserCog;
 
 // Grup menu terkunci: GENERAL / PROCESSING / OUTPUT / OTHER.
 const MENU_GROUPS = [
