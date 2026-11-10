@@ -53,3 +53,65 @@ SELECT
 -- ALTER TABLE category_mapping AUTO_INCREMENT = 1;
 -- ALTER TABLE category_option AUTO_INCREMENT = 1;
 -- ALTER TABLE category_assignment AUTO_INCREMENT = 1;
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ========== TIER 2: artefak K-Means & output ==========
+DELETE FROM cluster_result;
+DELETE FROM cluster_assignment;
+DELETE FROM centroid;
+DELETE FROM kmeans_iteration;
+DELETE FROM kmeans_run;
+DELETE FROM cluster_profile;
+DELETE FROM recommendation;
+
+-- ========== TIER 1: artefak preprocessing ==========
+DELETE FROM reduced_data;
+DELETE FROM transformed_data;
+DELETE FROM cleaned_data;
+DELETE FROM integrated_data;
+DELETE FROM category_mapping;
+DELETE FROM category_assignment;
+DELETE FROM category_option;
+DELETE FROM preprocessing_run;
+
+-- ========== TIER 0: data mentah (ronde re-import saja) ==========
+DELETE FROM nilai_akademik;
+DELETE FROM non_akademik;
+DELETE FROM siswa_periode;
+DELETE FROM siswa;
+
+-- ========== AUTO_INCREMENT balik ke 1 (pengganti manfaat TRUNCATE) ==========
+ALTER TABLE cluster_result AUTO_INCREMENT = 1;
+ALTER TABLE cluster_assignment AUTO_INCREMENT = 1;
+ALTER TABLE centroid AUTO_INCREMENT = 1;
+ALTER TABLE kmeans_iteration AUTO_INCREMENT = 1;
+ALTER TABLE kmeans_run AUTO_INCREMENT = 1;
+ALTER TABLE cluster_profile AUTO_INCREMENT = 1;
+ALTER TABLE recommendation AUTO_INCREMENT = 1;
+ALTER TABLE reduced_data AUTO_INCREMENT = 1;
+ALTER TABLE transformed_data AUTO_INCREMENT = 1;
+ALTER TABLE cleaned_data AUTO_INCREMENT = 1;
+ALTER TABLE integrated_data AUTO_INCREMENT = 1;
+ALTER TABLE category_mapping AUTO_INCREMENT = 1;
+ALTER TABLE category_assignment AUTO_INCREMENT = 1;
+ALTER TABLE category_option AUTO_INCREMENT = 1;
+ALTER TABLE preprocessing_run AUTO_INCREMENT = 1;
+ALTER TABLE nilai_akademik AUTO_INCREMENT = 1;
+ALTER TABLE non_akademik AUTO_INCREMENT = 1;
+ALTER TABLE siswa_periode AUTO_INCREMENT = 1;
+ALTER TABLE siswa AUTO_INCREMENT = 1;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ========== POST-CHECK (semua wajib 0) ==========
+SELECT
+ (SELECT COUNT(*) FROM kmeans_run) AS kmeans_run,
+ (SELECT COUNT(*) FROM kmeans_iteration) AS iterasi,
+ (SELECT COUNT(*) FROM centroid) AS centroid,
+ (SELECT COUNT(*) FROM cluster_assignment) AS assignment,
+ (SELECT COUNT(*) FROM cluster_result) AS result,
+ (SELECT COUNT(*) FROM preprocessing_run) AS pre_run,
+ (SELECT COUNT(*) FROM reduced_data) AS reduced,
+ (SELECT COUNT(*) FROM siswa_periode) AS siswa_periode,
+ (SELECT COUNT(*) FROM siswa) AS siswa;
