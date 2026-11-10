@@ -1,7 +1,12 @@
 // QA lokal engine K-Means + DBI (TANPA DB/HTTP) - TIKET BE-KM-1.
 // Jalankan: node server/src/services/kmeans/kmeans.engine.test.js
 // Oracle AC: A (fixture 6 titik), B (tie-break), C (cluster kosong), D (determinisme), E (maxIter),
-// F (rezim presisi 4dp R-KM-36), G (bridge TIKET BE-KM-3: kunci rezim + status oracle Excel).
+// F (rezim presisi 4dp R-KM-36), G (TIKET BE-KM-6: rezim produksi TERKUNCI Mode D == ORACLE_MANUAL
+// Owner, assert COCOK — bukan lagi STOP&LAPOR).
+// Fixture G dimuat dari dump SQL yang ADA di repo: server/DB/edukluster_widuri.sql (blok INSERT
+// reduced_data, 105 baris, ORDER BY id ASC). Override path JSON eksplisit tetap didukung:
+//   KMEANS_FIXTURE_JSON=/path/rows.json node .../kmeans.engine.test.js
+// (JSON = array of arrays numerik per baris, urutan fitur = FEATURE_ORDER kmeans.seed.js).
 
 'use strict';
 
@@ -113,22 +118,23 @@ check('F.distances<=4dp', allFourDecimals === true, JSON.stringify(resF.distance
 check('F.convergedAt=1', resF.converged === true && resF.convergedAt === 1,
   `converged=${resF.converged} at=${resF.convergedAt}`);
 
-// ================= FIXTURE G: TIKET BE-KM-3 — precision regime TERKUNCI + status oracle Excel ===
-// (1) Regim produksi terkunci Mode A: intermediat centroid HALF_UP 4 desimal.
+// ================= FIXTURE G: TIKET BE-KM-6 — rezim produksi TERKUNCI Mode D == ORACLE_MANUAL ===
+// (1) Regim produksi terkunci Mode D (R-KM-36 v3): jarak dibulatkan HALF_UP 4dp di titik
+//     perbandingan (segera setelah sqrt); centroid tetap rata-rata -> bulat 4dp di batas.
 const { PRECISION_REGIME } = require('./kmeans.engine');
-check('G.rezim TERKUNCI mode A decimals=4',
-  PRECISION_REGIME.mode === 'A' && PRECISION_REGIME.decimals === 4,
+check('G.rezim TERKUNCI mode D decimals=4',
+  PRECISION_REGIME.mode === 'D' && PRECISION_REGIME.decimals === 4,
   JSON.stringify(PRECISION_REGIME));
 
-// (2) Fixture reduced_data 105 baris (dump server/DB/edukluster_widuri_new.sql; override via
-//     env KMEANS_FIXTURE_JSON). Bridge QA-only: node kmeans.regime.bridge.js.
+// (2) Fixture reduced_data 105 baris (dump server/DB/edukluster_widuri.sql; override via
+//     env KMEANS_FIXTURE_JSON — lihat header). Bridge QA-only: node kmeans.regime.bridge.js.
 function loadReducedFixture() {
   const fs = require('fs');
   const path = require('path');
   const envPath = process.env.KMEANS_FIXTURE_JSON;
   if (envPath) return JSON.parse(fs.readFileSync(envPath, 'utf8')).map((r) => r.map(Number));
   const sqlDump = fs.readFileSync(
-    path.resolve(__dirname, '../../../DB/edukluster_widuri_new.sql'), 'utf8');
+    path.resolve(__dirname, '../../../DB/edukluster_widuri.sql'), 'utf8');
   const insertMatch = sqlDump.match(/INSERT INTO `reduced_data` \([^)]*\) VALUES\n([\s\S]*?);\n/);
   if (!insertMatch) return null;
   const rows = [];
@@ -144,23 +150,32 @@ const fixtureG = loadReducedFixture();
 if (fixtureG && fixtureG.length === 105) {
   const resG = runKMeans(fixtureG, { k: 10 });
   const movesG = resG.iterations.map((it) => it.moves);
-  // Temuan bridge BE-KM-3: Mode A/B/C menghasilkan trajectory IDENTIK ini pada fixture DB —
-  // pembulatan intermediat BUKAN penyebab selisih vs oracle Excel skripsi.
-  check('G.fixture105 moves=[105,16,10,5,1,0]',
-    JSON.stringify(movesG) === '[105,16,10,5,1,0]', JSON.stringify(movesG));
-  check('G.fixture105 convergedAt=5 totalIterations=6',
-    resG.convergedAt === 5 && resG.iterations.length === 6,
+  // ORACLE_MANUAL Owner (dataset synced 2025/2026 Ganjil, verifikasi Mentor sel-per-sel):
+  // rezim terkunci Mode D HARUS mereproduksi angka ini persis (assert COCOK, BE-KM-6).
+  const ORACLE_MANUAL = {
+    moves: [105, 15, 5, 4, 2, 2, 1, 1, 0],
+    convergedAt: 8,
+    totalIterations: 9,
+    distribution: [10, 1, 14, 3, 14, 28, 5, 13, 9, 8],
+  };
+  check('G.fixture105 moves==ORACLE_MANUAL [105,15,5,4,2,2,1,1,0]',
+    JSON.stringify(movesG) === JSON.stringify(ORACLE_MANUAL.moves), JSON.stringify(movesG));
+  check('G.fixture105 convergedAt=8 totalIterations=9',
+    resG.convergedAt === ORACLE_MANUAL.convergedAt &&
+    resG.iterations.length === ORACLE_MANUAL.totalIterations,
     `at=${resG.convergedAt} len=${resG.iterations.length}`);
-  check('G.fixture105 distribution=[3,3,23,3,14,26,5,12,9,7]',
-    JSON.stringify(resG.distribution) === '[3,3,23,3,14,26,5,12,9,7]',
+  check('G.fixture105 distribution==ORACLE_MANUAL [10,1,14,3,14,28,5,13,9,8]',
+    JSON.stringify(resG.distribution) === JSON.stringify(ORACLE_MANUAL.distribution),
     JSON.stringify(resG.distribution));
-  // Oracle Excel ([105,14,7,2,0] / at 4 / [3,3,22,5,14,26,5,12,8,7]) TIDAK direproduksi mode mana pun
-  // -> sesuai AC tiket: STOP & LAPOR dengan tabel bridge + seed rows (lihat output bridge script).
-  const ORACLE_EXCEL = { moves: [105, 14, 7, 2, 0], convergedAt: 4, distribution: [3, 3, 22, 5, 14, 26, 5, 12, 8, 7] };
-  check('G.oracleExcel BELUM cocok (STOP&LAPOR — diff = input/seed Excel, bukan rounding)',
-    JSON.stringify(movesG) !== JSON.stringify(ORACLE_EXCEL.moves) &&
-    JSON.stringify(resG.distribution) !== JSON.stringify(ORACLE_EXCEL.distribution),
-    'perlu formula-bar Owner utk jejak sel isian Excel');
+  // Oracle lama BE-KM-3 ([105,16,10,5,1,0] / at 5 / [3,3,23,...]) berasal dari dump pra-sync
+  // dan SUDAH digantikan ORACLE_MANUAL di atas — assert tidak-cocok (STOP&LAPOR) dihapus.
+  check('G.semua jarak output <=4dp (Mode D idempoten di round4)',
+    resG.distances.every((distanceValue) => {
+      const asString = String(distanceValue);
+      const dotIndex = asString.indexOf('.');
+      return dotIndex === -1 || asString.length - dotIndex - 1 <= 4;
+    }),
+    `n=${resG.distances.length}`);
 } else {
   check('G.fixture105 tersedia', false, 'dump reduced_data tidak ditemukan (skip via env?)');
 }
