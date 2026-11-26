@@ -121,7 +121,7 @@ package-lock.json
 package.json
 server/.env.example
 server/.gitignore
-server/DB/edukluster_widuri_new.sql
+server/DB/edukluster_widuri.sql
 server/http/ALLREST.txt
 server/http/admin.rest
 server/http/auth.rest
@@ -173,6 +173,7 @@ server/src/services/excelTemplate.service.js
 server/src/services/kmeans/kmeans.dbi.js
 server/src/services/kmeans/kmeans.engine.js
 server/src/services/kmeans/kmeans.engine.test.js
+server/src/services/kmeans/kmeans.regime.bridge.js
 server/src/services/kmeans/kmeans.seed.js
 server/src/services/kmeans/kmeans.service.js
 server/src/services/periode.service.js
