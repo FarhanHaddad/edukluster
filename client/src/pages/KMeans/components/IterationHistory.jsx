@@ -99,8 +99,7 @@ export default function IterationHistory({ runData, periodeId }) {
             badgeLabel = 'Konvergen';
           }
 
-          const sisaMovers = moves > movers.length ? moves - movers.length : Math.max(0, moves - 5);
-          const displayedMovers = movers.slice(0, 5);
+          const displayedMovers = movers;
 
           return (
             <div
@@ -166,19 +165,23 @@ export default function IterationHistory({ runData, periodeId }) {
                   </div>
 
                   {/* Tabel Movers (Siswa Berpindah) */}
-                  {moves > 0 && (
+                  {num === 0 ? (
+                    <p className="text-xs text-muted italic">
+                      Iterasi 0 = inisialisasi: {moves} siswa ditempatkan ke centroid terdekat untuk pertama kali; tidak ada perpindahan dari iterasi sebelumnya.
+                    </p>
+                  ) : moves > 0 ? (
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-main">
                         Siswa Berpindah Cluster ({moves})
                       </div>
-                      <div className="rounded-md border border-line bg-card overflow-x-auto">
+                      <div className="rounded-md border border-line bg-card overflow-x-auto max-h-96 overflow-y-auto">
                         <table className="w-full text-left text-xs">
-                          <thead className="bg-page border-b border-line text-muted font-medium">
+                          <thead className="bg-page border-b border-line text-muted font-medium sticky top-0 z-10">
                             <tr>
-                              <th className="px-3 py-2">NIS</th>
-                              <th className="px-3 py-2">NAMA</th>
-                              <th className="px-3 py-2">DARI</th>
-                              <th className="px-3 py-2">KE</th>
+                              <th className="px-3 py-2 bg-page">NIS</th>
+                              <th className="px-3 py-2 bg-page">NAMA</th>
+                              <th className="px-3 py-2 bg-page">DARI</th>
+                              <th className="px-3 py-2 bg-page">KE</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-line text-main font-mono">
@@ -201,14 +204,8 @@ export default function IterationHistory({ runData, periodeId }) {
                           </tbody>
                         </table>
                       </div>
-                      {sisaMovers > 0 && (
-                        <p className="text-xs text-muted italic">
-                          ...{sisaMovers} siswa lain berpindah (total {moves})
-                        </p>
-                      )}
                     </div>
-                  )}
-
+                  ) : null}
                   {/* Collapsible Detail Centroid */}
                   <div className="pt-1">
                     <button
